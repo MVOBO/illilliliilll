@@ -26,7 +26,9 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 .tstats{margin-left:auto;display:flex;gap:12px;color:var(--g500);font-size:11px;white-space:nowrap}
 .tstats b{color:var(--g700)}
 #io-btns{display:flex;align-items:center;gap:8px;flex-shrink:0}
-#btn-save,#btn-load{height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;border:none}
+#btn-save,#btn-load,#btn-new-store{height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;border:none}
+#btn-new-store{background:#e0f2fe;border:1px solid #7dd3fc!important;color:#0369a1;font-weight:600}
+#btn-new-store:hover{background:#bae6fd}
 #btn-save{background:var(--yellow);border:1px solid var(--ym);color:#000;font-weight:600}
 #btn-save:hover{background:var(--ym)}
 #btn-load{background:#fff;border:1px solid var(--g300);color:var(--g700);font-weight:500}
@@ -89,8 +91,8 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 .r-extra td:first-child{background:transparent}
 .r-extra .ci{font-size:11pt;font-weight:bold;color:#ff0000;text-align:right}
 .r-extra .ci::placeholder{color:var(--g300);font-style:italic;font-weight:normal;text-align:left}
-.ptbl th:last-child{width:22px;padding:0}
-.ptbl td:last-child{width:22px;padding:0;border-bottom:1px solid var(--g100);background:transparent!important}
+.ptbl th:last-child{width:48px;padding:0}
+.ptbl td:last-child{width:48px;padding:0;border-bottom:1px solid var(--g100);background:transparent!important}
 .ci{width:100%;padding:4px 10px;border:none;outline:none;background:transparent;min-height:26px;resize:none;overflow:hidden;line-height:1.4;display:block;font-family:var(--font)}
 .ci:focus{background:#fffbeb;box-shadow:inset 0 0 0 2px var(--yellow);border-radius:2px}
 .r-product .ci{font-size:11pt;font-weight:bold;color:#000}
@@ -103,6 +105,20 @@ tr.hidden{display:none!important}
 #btop{position:fixed;bottom:16px;right:calc(var(--rw) + 10px);width:30px;height:30px;background:var(--g600);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;z-index:40}
 #btop.vis{opacity:1;transform:translateY(0)}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g200);border-radius:2px}
+
+/* ── TABS ── */
+#tab-bar{display:flex;align-items:center;background:#fff;border-bottom:2px solid var(--ym);padding:0 8px;gap:2px;flex-shrink:0;overflow-x:auto;min-height:36px}
+#tab-bar::-webkit-scrollbar{height:3px}
+#tab-bar::-webkit-scrollbar-thumb{background:var(--g200)}
+.tab{display:flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;cursor:pointer;font-family:var(--font);font-size:11pt;color:var(--g600);background:var(--g50);white-space:nowrap;position:relative;top:2px}
+.tab:hover{background:var(--yl);color:#000}
+.tab.active{background:#fff;border-color:var(--ym);color:#000;font-weight:700}
+.tab-name{outline:none;background:transparent;border:none;font-family:var(--font);font-size:11pt;font-weight:inherit;color:inherit;cursor:pointer;min-width:40px;max-width:140px}
+.tab.active .tab-name{cursor:text}
+.tab-close{font-size:12px;color:var(--g400);cursor:pointer;padding:0 2px;border-radius:2px;line-height:1;background:none;border:none}
+.tab-close:hover{background:#fee2e2;color:#dc2626}
+#tab-add{background:none;border:none;cursor:pointer;font-size:18px;color:var(--g400);padding:4px 8px;border-radius:4px;line-height:1;flex-shrink:0}
+#tab-add:hover{background:var(--yl);color:#000}
 </style>
 </head>
 <body>
@@ -111,11 +127,14 @@ tr.hidden{display:none!important}
   <input id="tsearch" type="search" placeholder="Hledat obchod nebo produkt…" autocomplete="off">
   <div class="tstats">Obchody: <b id="ss">0</b>&nbsp; Produkty: <b id="sp">0</b>&nbsp; Řádky: <b id="sr2">0</b></div>
   <div id="io-btns">
+    <button id="btn-new-store" title="Přidat nový obchod">＋ Nový obchod</button>
     <button id="btn-save" title="Uložit do Supabase">💾 Uložit</button>
     <button id="btn-load" title="Načíst aktuální data ze Supabase">🔄 Aktualizovat</button>
     <span id="save-status"></span>
   </div>
 </div>
+
+<div id="tab-bar"><button id="tab-add" title="Nový den">＋</button></div>
 <div id="layout">
   <div id="sl">
     <div class="sh"><div class="sh-title">Obchody</div><input class="ssearch" id="sls" type="search" placeholder="Filtruj…" autocomplete="off"></div>
@@ -148,6 +167,7 @@ function renderSL(f){
   const el=document.getElementById('store-list');el.innerHTML='';
   const fl=f.toLowerCase();
   D.forEach(function(s,i){
+    if(s._deleted)return;
     if(fl&&s.name.toLowerCase().indexOf(fl)<0)return;
     const p=parseSched(s.name);const n=p.n;
     const cnt=s.products.filter(function(p){return p.is_product;}).length;
@@ -189,10 +209,46 @@ function renderMain(){
     const hdrCls=isB?'ssec-hdr-b':'ssec-hdr-y';
     const nameCls=isB?'ssec-name-b':'ssec-name-y';
     const bCls=isB?'ssec-badge badge-b':'ssec-badge badge-y';
-    const badge=sched?'<span class="'+bCls+'">📅 '+sched+'</span>':'';
+    const badge=sched?'<span class="'+bCls+'">\u{1F4C5} '+sched+'</span>':'';
     const thead='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
-    sec.innerHTML='<div class="'+hdrCls+'"><div class="'+nameCls+'">'+n+'</div>'+badge+'</div>'+
-      '<table class="ptbl">'+thead+'<tbody id="tb'+si+'"></tbody></table>';
+
+    // Editable store name
+    var hdr=document.createElement('div');hdr.className=hdrCls;
+    var nameEl=document.createElement('div');
+    nameEl.className=nameCls;
+    nameEl.contentEditable='true';nameEl.spellcheck=false;
+    nameEl.textContent=n;nameEl.title='Klikni pro úpravu názvu';
+    nameEl.style.cssText='outline:none;cursor:text;min-width:60px;border-radius:3px;padding:1px 4px';
+    nameEl.onfocus=function(){this.style.background='rgba(0,0,0,0.06)';};
+    (function(si,sched,nameEl){
+      nameEl.onblur=function(){
+        this.style.background='';
+        var newName=this.textContent.trim();
+        if(!newName){this.textContent=D[si].name;return;}
+        var fullName=sched?newName+' ('+sched+')':newName;
+        D[si].name=fullName;
+        var sBtn=document.querySelector('.sbtn[data-i="'+si+'"]');
+        if(sBtn){var lbl=sBtn.querySelector('.sbtn-lbl');if(lbl)lbl.textContent=newName;}
+        saveStoreName(si,fullName);
+      };
+    })(si,sched,nameEl);
+    nameEl.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}};
+    hdr.appendChild(nameEl);
+    if(sched)hdr.insertAdjacentHTML('beforeend',badge);
+    // Delete store button
+    var btnDel=document.createElement('button');
+    btnDel.textContent='🗑';btnDel.title='Smazat obchod';
+    btnDel.style.cssText='margin-left:auto;background:none;border:none;cursor:pointer;font-size:14px;opacity:.4;padding:2px 4px;border-radius:3px;line-height:1';
+    btnDel.onmouseover=function(){this.style.opacity='1';this.style.background='rgba(220,38,38,0.15)';};
+    btnDel.onmouseout=function(){this.style.opacity='.4';this.style.background='none';};
+    (function(si,sec){btnDel.onclick=function(){
+      if(!confirm('Smazat obchod "'+D[si].name+'" včetně všech dat?'))return;
+      deleteStore(si,sec);
+    };})(si,sec);
+    hdr.appendChild(btnDel);
+    var tbl=document.createElement('table');tbl.className='ptbl';
+    tbl.innerHTML=thead+'<tbody id="tb'+si+'"></tbody>';
+    sec.appendChild(hdr);sec.appendChild(tbl);
     cont.appendChild(sec);
     const tb=sec.querySelector('#tb'+si);
     s.products.forEach(function(pr,pi){
@@ -230,19 +286,48 @@ function renderMain(){
         (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
         td.appendChild(ta);tr.appendChild(td);
       }
-      // + button cell
+      // + and clear button cell
       var tdPlus=document.createElement('td');
-      tdPlus.style.cssText='width:22px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
+      tdPlus.style.cssText='width:44px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
+      var btnWrap=document.createElement('div');
+      btnWrap.style.cssText='display:flex;flex-direction:row;align-items:center;gap:3px;padding:0 3px;justify-content:center';
+
       var btnPlus=document.createElement('button');
       btnPlus.textContent='+';
       btnPlus.title='Přidat řádek';
-      btnPlus.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g500);font-size:11px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;margin:4px auto;font-family:var(--font)';
+      btnPlus.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g500);font-size:11px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font)';
       btnPlus.onmouseover=function(){this.style.background='var(--yl)';this.style.borderColor='var(--yellow)';this.style.color='#000';};
       btnPlus.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g500)';};
       (function(tr,si){
         btnPlus.onclick=function(){addExtraRow(tr,si);};
       })(tr,si);
-      tdPlus.appendChild(btnPlus);
+
+      var btnClear=document.createElement('button');
+      btnClear.textContent='🗑';
+      btnClear.title='Smazat Materiál, Šarže, Číslo palety, Poznámku';
+      btnClear.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g500);font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font)';
+      btnClear.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
+      btnClear.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g500)';};
+      (function(tr,pr,si,pi){
+        btnClear.onclick=function(){
+          // Clear cols 2-5 in DOM
+          var inputs=tr.querySelectorAll('.ci');
+          for(var ci=1;ci<5;ci++){
+            if(inputs[ci]){inputs[ci].value='';autoH(inputs[ci]);}
+          }
+          // Clear in data
+          if(!pr.cells)pr.cells={};
+          for(var ci=2;ci<=5;ci++){
+            pr.cells[String(ci)]={val:'',red:false};
+            // Delete from Supabase
+            deleteFromSB('c_'+si+'_'+pi+'_'+ci);
+          }
+        };
+      })(tr,pr,si,pi);
+
+      btnWrap.appendChild(btnPlus);
+      btnWrap.appendChild(btnClear);
+      tdPlus.appendChild(btnWrap);
       tr.appendChild(tdPlus);
       tb.appendChild(tr);
     });
@@ -396,7 +481,18 @@ function loadSaved(){
   .then(function(rows){
     if(!Array.isArray(rows)||!rows.length){showStatus('');return;}
     rows.forEach(function(row){
-      if(row.extra_key){
+      if(row.extra_key==='__name__'){
+        // Restore custom store name
+        var si=row.store_idx;
+        if(D[si])D[si].name=row.value;
+        // If store index beyond current D length, it's a new store added by user
+        if(si>=D.length){
+          for(var k=D.length;k<=si;k++){
+            D.push({name:'Nový obchod',header_type:'yellow',products:[],_extra:{}});
+          }
+          D[si].name=row.value;
+        }
+      } else if(row.extra_key){
         // Extra row
         var si=row.store_idx;
         if(!D[si])return;
@@ -539,7 +635,84 @@ document.addEventListener('keydown',function(e){
   }
 });
 
-// ── MANUAL SAVE BUTTON (force immediate save) ──
+// ── DELETE STORE ──
+function deleteStore(si,sec){
+  // Delete all Supabase rows for this store
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?store_idx=eq.'+si,{
+    method:'DELETE',headers:sbHeaders()
+  }).catch(function(){});
+  // Remove from DOM
+  sec.remove();
+  // Remove from data (mark as deleted, keep index stable)
+  D[si]._deleted=true;
+  D[si].products=[];
+  D[si]._extra={};
+  // Update sidebar
+  renderSL();renderPL();go();
+  showStatus('✓ Smazáno');
+}
+
+// ── SAVE STORE NAME ──
+function saveStoreName(si,name){
+  fetch(SB_URL+'/rest/v1/'+TABLE,{
+    method:'POST',
+    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+    body:JSON.stringify([{id:'sname_'+si,store_idx:si,prod_idx:null,col_idx:null,extra_key:'__name__',value:name}])
+  }).then(function(r){if(r.ok)showStatus('✓ Uloženo');}).catch(function(){});
+}
+
+// ── ADD NEW STORE ──
+function addNewStore(){
+  var name=prompt('Název nového obchodu:','');
+  if(!name||!name.trim())return;
+  name=name.trim();
+  var si=D.length;
+  D.push({name:name,header_type:'yellow',products:[],_extra:{}});
+  saveStoreName(si,name);
+  renderSL();renderPL();
+  // Render just the new section
+  var cont=document.getElementById('cont');
+  var COLS=['Produkt','Materiál','Šarže','Číslo palety','Poznámka'];
+  var sec=document.createElement('div');
+  sec.className='ssec';sec.id='sec'+si;
+  var hdr=document.createElement('div');hdr.className='ssec-hdr-y';
+  var nameEl=document.createElement('div');
+  nameEl.className='ssec-name-y';
+  nameEl.contentEditable='true';nameEl.spellcheck=false;
+  nameEl.textContent=name;nameEl.title='Klikni pro úpravu názvu';
+  nameEl.style.cssText='outline:none;cursor:text;min-width:60px;border-radius:3px;padding:1px 4px';
+  nameEl.onfocus=function(){this.style.background='rgba(0,0,0,0.06)';};
+  nameEl.onblur=function(){
+    this.style.background='';
+    var newName=this.textContent.trim();
+    if(!newName)return;
+    D[si].name=newName;
+    var sBtn=document.querySelector('.sbtn[data-i="'+si+'"]');
+    if(sBtn){var lbl=sBtn.querySelector('.sbtn-lbl');if(lbl)lbl.textContent=newName;}
+    saveStoreName(si,newName);
+  };
+  nameEl.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}};
+  hdr.appendChild(nameEl);
+  var btnDel2=document.createElement('button');
+  btnDel2.textContent='🗑';btnDel2.title='Smazat obchod';
+  btnDel2.style.cssText='margin-left:auto;background:none;border:none;cursor:pointer;font-size:14px;opacity:.4;padding:2px 4px;border-radius:3px;line-height:1';
+  btnDel2.onmouseover=function(){this.style.opacity='1';this.style.background='rgba(220,38,38,0.15)';};
+  btnDel2.onmouseout=function(){this.style.opacity='.4';this.style.background='none';};
+  (function(si,sec){btnDel2.onclick=function(){
+    if(!confirm('Smazat obchod "'+D[si].name+'" včetně všech dat?'))return;
+    deleteStore(si,sec);
+  };})(si,sec);
+  hdr.appendChild(btnDel2);
+  var tbl=document.createElement('table');tbl.className='ptbl';
+  var thead='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
+  tbl.innerHTML=thead+'<tbody id="tb'+si+'"></tbody>';
+  sec.appendChild(hdr);sec.appendChild(tbl);
+  cont.appendChild(sec);
+  sec.scrollIntoView({behavior:'smooth',block:'start'});
+  go();
+}
+
+document.getElementById('btn-new-store').onclick=addNewStore;
 document.getElementById('btn-save').onclick=function(){
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
   saveAll();
@@ -555,8 +728,286 @@ document.getElementById('btn-load').onclick=function(){
 // Remove file input (not needed anymore)
 var fi=document.getElementById('file-input');if(fi)fi.remove();
 
-loadSaved();
-renderSL();renderPL();renderMain();go();
+// ── TAB SYSTEM ──
+// Each tab = { id, name, cells:{}, extras:{} }
+// Active tab data lives in D[si].products[pi].cells and D[si]._extra
+// VZOR tab = template (read-only cells, never saved to Supabase as a day)
+
+var TABS_KEY='avomango_tabs_v1';
+var tabs=[];        // [{id,name}]
+var activeTab=null; // tab id
+
+function todayStr(){
+  var d=new Date();
+  var dd=String(d.getDate()).padStart(2,'0');
+  var mm=String(d.getMonth()+1).padStart(2,'0');
+  var yyyy=d.getFullYear();
+  return dd+'.'+mm+'.'+yyyy;
+}
+
+function newTabId(){
+  return 'tab_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+}
+
+// ── CLEAR ALL CELL DATA FROM D ──
+function clearAllCells(){
+  D.forEach(function(s){
+    s.products.forEach(function(pr){pr.cells={};});
+    s._extra={};
+    s._deleted=false;
+  });
+  window._savedExtras={};
+}
+
+// ── SWITCH TAB ──
+function switchTab(id){
+  // Save current tab cells before switching
+  if(activeTab) saveTabCells(activeTab);
+  activeTab=id;
+  clearAllCells();
+  // Load cells for this tab
+  loadTabCells(id);
+}
+
+// ── SAVE TAB CELLS TO SUPABASE ──
+function saveTabCells(tabId){
+  var rows=[];
+  D.forEach(function(s,si){
+    s.products.forEach(function(pr,pi){
+      if(!pr.cells)return;
+      for(var ci=1;ci<=5;ci++){
+        var cd=pr.cells[String(ci)];
+        if(cd&&cd.val){
+          rows.push({id:tabId+'_c_'+si+'_'+pi+'_'+ci,store_idx:si,prod_idx:pi,col_idx:ci,extra_key:tabId,value:cd.val});
+        }
+      }
+    });
+    if(s._extra){
+      Object.keys(s._extra).forEach(function(key){
+        var vals=s._extra[key];
+        Object.keys(vals).forEach(function(ci){
+          if(vals[ci])rows.push({id:tabId+'_e_'+si+'_'+key+'_'+ci,store_idx:si,prod_idx:null,col_idx:+ci,extra_key:tabId+'_ex_'+key,value:vals[ci]});
+        });
+      });
+    }
+  });
+  if(!rows.length)return;
+  fetch(SB_URL+'/rest/v1/'+TABLE,{
+    method:'POST',
+    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+    body:JSON.stringify(rows)
+  }).catch(function(){});
+}
+
+// ── LOAD TAB CELLS FROM SUPABASE ──
+function loadTabCells(tabId){
+  showStatus('⟳ Načítám…','orange');
+  // Load store names + cells for this tab
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId)+'&select=*&limit=5000',{headers:sbHeaders()})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(Array.isArray(rows)){
+      rows.forEach(function(row){
+        var pr=D[row.store_idx]&&D[row.store_idx].products[row.prod_idx];
+        if(!pr)return;
+        if(!pr.cells)pr.cells={};
+        pr.cells[String(row.col_idx)]={val:row.value,red:false};
+      });
+    }
+    // Also load extra rows for this tab
+    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(tabId+'_ex_%')+'&select=*&limit=2000',{headers:sbHeaders()});
+  })
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(Array.isArray(rows)){
+      rows.forEach(function(row){
+        var si=row.store_idx;
+        var key=row.extra_key.replace(tabId+'_ex_','');
+        if(!D[si])return;
+        if(!D[si]._extra)D[si]._extra={};
+        if(!D[si]._extra[key])D[si]._extra[key]={};
+        D[si]._extra[key][row.col_idx]=row.value;
+      });
+      window._savedExtras={};
+      D.forEach(function(s,si){if(s._extra&&Object.keys(s._extra).length)window._savedExtras[si]=s._extra;});
+    }
+    renderMain();restoreExtras();go();
+    showStatus('✓ '+getTabName(tabId));
+  })
+  .catch(function(){showStatus('✗ Chyba','red');});
+}
+
+function getTabName(id){
+  var t=tabs.find(function(t){return t.id===id;});
+  return t?t.name:id;
+}
+
+// ── SAVE/LOAD TAB LIST ──
+function saveTabList(){
+  fetch(SB_URL+'/rest/v1/'+TABLE,{
+    method:'POST',
+    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+    body:JSON.stringify([{id:'__tablist__',store_idx:0,prod_idx:null,col_idx:null,extra_key:'__tablist__',value:JSON.stringify(tabs)}])
+  }).catch(function(){});
+}
+
+function loadTabList(cb){
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.__tablist__&select=value',{headers:sbHeaders()})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(rows&&rows.length&&rows[0].value){
+      tabs=JSON.parse(rows[0].value);
+    }
+    if(!tabs.length){
+      // First time: create VZOR tab
+      tabs=[{id:'vzor',name:'VZOR'}];
+      saveTabList();
+    }
+    cb();
+  })
+  .catch(function(){
+    tabs=[{id:'vzor',name:'VZOR'}];
+    cb();
+  });
+}
+
+// ── DELETE TAB ──
+function deleteTab(id){
+  if(tabs.length<=1){alert('Nelze smazat poslední list.');return;}
+  var t=tabs.find(function(t){return t.id===id;});
+  if(!confirm('Smazat list "'+t.name+'" včetně všech dat?'))return;
+  // Delete from Supabase
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbHeaders()}).catch(function(){});
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(id+'_ex_%'),{method:'DELETE',headers:sbHeaders()}).catch(function(){});
+  tabs=tabs.filter(function(t){return t.id!==id;});
+  saveTabList();
+  if(activeTab===id){
+    switchTab(tabs[0].id);
+  }
+  renderTabs();
+}
+
+// ── RENDER TABS ──
+function renderTabs(){
+  var bar=document.getElementById('tab-bar');
+  // Remove existing tabs (keep + button)
+  var existing=bar.querySelectorAll('.tab');
+  existing.forEach(function(el){el.remove();});
+  // Insert tabs before + button
+  var addBtn=document.getElementById('tab-add');
+  tabs.forEach(function(t){
+    var tab=document.createElement('div');
+    tab.className='tab'+(activeTab===t.id?' active':'');
+    tab.dataset.id=t.id;
+    var nameEl=document.createElement('input');
+    nameEl.type='text';nameEl.className='tab-name';nameEl.value=t.name;
+    nameEl.readOnly=(activeTab!==t.id);
+    nameEl.onclick=function(e){
+      if(activeTab!==t.id){e.preventDefault();switchTab(t.id);renderTabs();}
+    };
+    nameEl.onblur=function(){
+      t.name=this.value.trim()||t.name;
+      this.value=t.name;
+      saveTabList();
+    };
+    nameEl.onkeydown=function(e){if(e.key==='Enter')this.blur();e.stopPropagation();};
+    tab.appendChild(nameEl);
+    // Close button (not for VZOR if only 1 tab)
+    var closeBtn=document.createElement('button');
+    closeBtn.className='tab-close';closeBtn.textContent='×';closeBtn.title='Smazat list';
+    (function(id){closeBtn.onclick=function(e){e.stopPropagation();deleteTab(id);};})(t.id);
+    tab.appendChild(closeBtn);
+    bar.insertBefore(tab,addBtn);
+  });
+}
+
+// ── ADD NEW DAY TAB ──
+document.getElementById('tab-add').onclick=function(){
+  if(activeTab) saveTabCells(activeTab);
+  var id=newTabId();
+  var name=todayStr();
+  // Check if name already exists, add suffix
+  var existing=tabs.filter(function(t){return t.name.startsWith(name);}).length;
+  if(existing>0)name=name+' ('+(existing+1)+')';
+  tabs.push({id:id,name:name});
+  saveTabList();
+  activeTab=id;
+
+  // Copy VZOR data (extra_key='vzor') to new tab
+  showStatus('⟳ Kopíruji VZOR…','orange');
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbHeaders()})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    var newRows=[];
+    if(Array.isArray(rows)){
+      rows.forEach(function(row){
+        newRows.push({
+          id:id+'_c_'+row.store_idx+'_'+row.prod_idx+'_'+row.col_idx,
+          store_idx:row.store_idx,prod_idx:row.prod_idx,col_idx:row.col_idx,
+          extra_key:id,value:row.value
+        });
+      });
+    }
+    // Also copy extra rows from vzor
+    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.vzor_ex_%&select=*&limit=2000',{headers:sbHeaders()})
+    .then(function(r){return r.json();})
+    .then(function(extraRows){
+      if(Array.isArray(extraRows)){
+        extraRows.forEach(function(row){
+          var key=row.extra_key.replace('vzor_ex_','');
+          newRows.push({
+            id:id+'_e_'+row.store_idx+'_'+key+'_'+row.col_idx,
+            store_idx:row.store_idx,prod_idx:null,col_idx:row.col_idx,
+            extra_key:id+'_ex_'+key,value:row.value
+          });
+        });
+      }
+      return newRows;
+    });
+  })
+  .then(function(newRows){
+    if(newRows.length){
+      return fetch(SB_URL+'/rest/v1/'+TABLE,{
+        method:'POST',
+        headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+        body:JSON.stringify(newRows)
+      });
+    }
+  })
+  .then(function(){
+    clearAllCells();
+    renderTabs();
+    loadTabCells(id);
+    showStatus('✓ Nový list: '+name);
+  })
+  .catch(function(e){showStatus('✗ Chyba kopírování','red');});
+};
+
+// ── OVERRIDE scheduleSave to use activeTab ──
+var _schedOrig=scheduleSave;
+scheduleSave=function(){
+  if(saveTimer)clearTimeout(saveTimer);
+  showStatus('● ukládám…','orange');
+  saveTimer=setTimeout(function(){saveTabCells(activeTab);showStatus('✓ Uloženo');},1200);
+};
+
+// ── OVERRIDE btn-save ──
+document.getElementById('btn-save').onclick=function(){
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
+  saveTabCells(activeTab);showStatus('✓ Uloženo');
+};
+
+// ── OVERRIDE btn-load ──
+document.getElementById('btn-load').onclick=function(){
+  clearAllCells();loadTabCells(activeTab);
+};
+
+// ── INIT WITH TABS ──
+loadTabList(function(){
+  activeTab=tabs[0].id;
+  renderSL();renderPL();renderTabs();
+  loadTabCells(activeTab);
+});
 
 document.getElementById('tsearch').oninput=function(e){sTerm=e.target.value;go();renderSL(document.getElementById('sls').value);renderPL(document.getElementById('pls').value);};
 document.getElementById('sls').oninput=function(e){renderSL(e.target.value);};
