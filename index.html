@@ -815,7 +815,7 @@ function loadTabCells(tabId){
       });
     }
     // Also load extra rows for this tab
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(tabId+'_ex_%')+'&select=*&limit=2000',{headers:sbHeaders()});
+    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(tabId+'_ex_')+'*&select=*&limit=2000',{headers:sbHeaders()});
   })
   .then(function(r){return r.json();})
   .then(function(rows){
@@ -878,7 +878,7 @@ function deleteTab(id){
   if(!confirm('Smazat list "'+t.name+'" včetně všech dat?'))return;
   // Delete from Supabase
   fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbHeaders()}).catch(function(){});
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(id+'_ex_%'),{method:'DELETE',headers:sbHeaders()}).catch(function(){});
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(id+'_ex_')+'*',{method:'DELETE',headers:sbHeaders()}).catch(function(){});
   tabs=tabs.filter(function(t){return t.id!==id;});
   saveTabList();
   if(activeTab===id){
@@ -949,7 +949,7 @@ document.getElementById('tab-add').onclick=function(){
       });
     }
     // Also copy extra rows from vzor
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.vzor_ex_%&select=*&limit=2000',{headers:sbHeaders()})
+    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.vzor_ex_*&select=*&limit=2000',{headers:sbHeaders()})
     .then(function(r){return r.json();})
     .then(function(extraRows){
       if(Array.isArray(extraRows)){
