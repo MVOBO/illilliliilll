@@ -307,7 +307,7 @@ function renderMain(){
           (function(tr,si,pi){btnDelInline.onclick=function(e){
             e.stopPropagation();
             if(!confirm('Odebrat produkt "'+D[si].products[pi].name+'"?'))return;
-            for(var ci=1;ci<=5;ci++) deleteFromSB(activeTab+'_c_'+si+'_'+pi+'_'+ci);
+            for(var ci=1;ci<=5;ci++) deleteFromSB(makeId(activeTab,si,pi,ci));
             D[si].products[pi]._deleted=true;
             tr.remove();
             renderSL();renderPL(document.getElementById('pls').value);
@@ -354,7 +354,7 @@ function renderMain(){
           for(var ci=2;ci<=5;ci++){
             pr.cells[String(ci)]={val:'',red:false};
             // Delete from Supabase
-            deleteFromSB(activeTab+'_c_'+si+'_'+pi+'_'+ci);
+            deleteFromSB(makeId(activeTab,si,pi,ci));
           }
         };
       })(tr,pr,si,pi);
@@ -432,50 +432,130 @@ function go(){
   if(aStore!==null){var s=document.getElementById('sec'+aStore);if(s)s.scrollIntoView({behavior:'smooth',block:'start'});}
 }
 
-// ── LOCALSTORAGE SAVE / LOAD ──
-// ── SUPABASE CONFIG ──
+// ══════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════════════════════
 var SB_URL='https://gzxbqeefnmeojtpkjwta.supabase.co';
 var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6eGJxZWVmbm1lb2p0cGtqd3RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0ODczNTEsImV4cCI6MjA5NTA2MzM1MX0.pd94Eye10CQxhxqnR0gG23rWWgglRzjqaOF4Db9Altg';
 var TABLE='avomango_cells';
 
-function sbHeaders(){
-  return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'};
+function sbH(){
+  return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+}
+function sbHU(){
+  return Object.assign(sbH(),{'Prefer':'resolution=merge-duplicates'});
 }
 
-// ── STATUS ──
+// ══════════════════════════════════════════════════════
+// STATUS
+// ══════════════════════════════════════════════════════
+var _statusTimer=null;
 function showStatus(msg,color){
   var el=document.getElementById('save-status');
-  el.textContent=msg;
-  el.style.color=color||'var(--green)';
-  if(color!=='orange')setTimeout(function(){el.textContent='';},3000);
+  el.textContent=msg;el.style.color=color||'var(--green)';
+  if(_statusTimer)clearTimeout(_statusTimer);
+  if(color!=='orange')_statusTimer=setTimeout(function(){el.textContent='';},3000);
 }
 
-// ── COLLECT ALL DATA ──
-function collectData(){
+// ══════════════════════════════════════════════════════
+// UNDO
+// ══════════════════════════════════════════════════════
+var undoStack=[];
+function pushUndo(fn){undoStack.push(fn);if(undoStack.length>50)undoStack.shift();}
+function undo(){if(!undoStack.length)return;undoStack.pop()();}
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){
+    if(document.activeElement&&document.activeElement.tagName==='TEXTAREA')return;
+    e.preventDefault();undo();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// TAB SYSTEM
+// ══════════════════════════════════════════════════════
+var tabs=[];
+var activeTab=null;
+
+function todayStr(){
+  var d=new Date();
+  return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+}
+function newTabId(){return 'tab_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);}
+
+// ── Save/load tab list ──
+function saveTabList(){
+  var payload=[{id:'__tablist__',store_idx:0,prod_idx:null,col_idx:null,extra_key:'__tablist__',value:JSON.stringify(tabs)}];
+  fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(payload)}).catch(function(){});
+}
+function loadTabList(cb){
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.__tablist__&select=value',{headers:sbH()})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(rows&&rows.length&&rows[0].value)tabs=JSON.parse(rows[0].value);
+    if(!tabs.length){tabs=[{id:'vzor',name:'VZOR'}];saveTabList();}
+    cb();
+  }).catch(function(){tabs=[{id:'vzor',name:'VZOR'}];cb();});
+}
+
+// ══════════════════════════════════════════════════════
+// DATA MODEL
+//
+// Každý tab ukládá buňky (sloupce 2-5) jako řádky:
+//   id:  {tabId}|{si}|{pi}|{ci}
+//   extra_key: tabId
+//
+// VZOR navíc ukládá strukturu (přidané produkty):
+//   id: vzor_struct
+//   extra_key: __vzor_struct__
+//
+// Poznámky (extra řádky) jako:
+//   id: {tabId}|ex|{si}|{key}|{ci}
+//   extra_key: {tabId}__ex
+// ══════════════════════════════════════════════════════
+
+function makeId(tabId,si,pi,ci){return tabId+'|'+si+'|'+pi+'|'+ci;}
+function makeExId(tabId,si,key,ci){return tabId+'|ex|'+si+'|'+key+'|'+ci;}
+
+// ── Autosave timer ──
+var saveTimer=null;
+function scheduleSave(){
+  if(saveTimer)clearTimeout(saveTimer);
+  showStatus('● ukládám…','orange');
+  saveTimer=setTimeout(function(){
+    saveTimer=null;
+    saveCurrentTab().then(function(){showStatus('✓ Uloženo');}).catch(function(){showStatus('✗ Chyba','red');});
+  },1200);
+}
+
+// ── Collect all editable cell data for current tab ──
+function collectTabData(tabId){
   var rows=[];
   D.forEach(function(s,si){
+    if(s._deleted)return;
     s.products.forEach(function(pr,pi){
-      if(!pr.cells)return;
-      for(var ci=1;ci<=5;ci++){
-        var cd=pr.cells[String(ci)];
+      if(pr._deleted)return;
+      // cols 2-5 are editable; col 1 is product name (structure, not per-tab)
+      for(var ci=2;ci<=5;ci++){
+        var cd=pr.cells&&pr.cells[String(ci)];
         if(cd&&cd.val){
           rows.push({
-            id:'c_'+si+'_'+pi+'_'+ci,
+            id:makeId(tabId,si,pi,ci),
             store_idx:si,prod_idx:pi,col_idx:ci,
-            extra_key:null,value:cd.val
+            extra_key:tabId,value:cd.val
           });
         }
       }
     });
+    // extra rows
     if(s._extra){
       Object.keys(s._extra).forEach(function(key){
         var vals=s._extra[key];
         Object.keys(vals).forEach(function(ci){
           if(vals[ci]){
             rows.push({
-              id:'e_'+si+'_'+key+'_'+ci,
+              id:makeExId(tabId,si,key,ci),
               store_idx:si,prod_idx:null,col_idx:+ci,
-              extra_key:key,value:vals[ci]
+              extra_key:tabId+'__ex',value:vals[ci]
             });
           }
         });
@@ -485,14 +565,108 @@ function collectData(){
   return rows;
 }
 
-// ── DELETE FROM SUPABASE (tab-aware) ──
-function deleteFromSB(id){
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.'+encodeURIComponent(id),{
-    method:'DELETE',headers:sbHeaders()
-  }).catch(function(){});
+// ── Save current tab cells to Supabase ──
+function saveCurrentTab(){
+  var tabId=activeTab;
+  var rows=collectTabData(tabId);
+  if(!rows.length)return Promise.resolve();
+  return fetch(SB_URL+'/rest/v1/'+TABLE,{
+    method:'POST',headers:sbHU(),body:JSON.stringify(rows)
+  }).then(function(r){if(!r.ok)throw new Error(r.status);});
 }
 
-// ── EXTRA ROWS (with SB delete on remove) ──
+// ── Delete a single cell from Supabase ──
+function deleteFromSB(id){
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbH()}).catch(function(){});
+}
+
+// ── Clear all editable cells in memory (keep structure) ──
+function clearTabCells(){
+  D.forEach(function(s){
+    s.products.forEach(function(pr){
+      if(!pr.cells)pr.cells={};
+      // keep col1 (name), clear 2-5
+      var name=pr.cells['1'];
+      pr.cells={};
+      if(name)pr.cells['1']=name;
+    });
+    s._extra={};
+  });
+}
+
+// ── Load tab cells from Supabase and render ──
+function loadTabCells(tabId,cb){
+  showStatus('⟳ Načítám…','orange');
+  clearTabCells();
+  // load editable cells
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId)+'&select=*&limit=5000',{headers:sbH()})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(Array.isArray(rows)){
+      rows.forEach(function(row){
+        if(row.prod_idx===null)return;
+        var pr=D[row.store_idx]&&D[row.store_idx].products[row.prod_idx];
+        if(!pr||pr._deleted)return;
+        if(!pr.cells)pr.cells={};
+        pr.cells[String(row.col_idx)]={val:row.value,red:false};
+      });
+    }
+    // load extra rows
+    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId+'__ex')+'&select=*&limit=2000',{headers:sbH()});
+  })
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    var savedExtras={};
+    if(Array.isArray(rows)){
+      rows.forEach(function(row){
+        // id format: tabId|ex|si|key|ci
+        var parts=row.id.split('|');
+        var si=row.store_idx;
+        // key is parts[3]
+        var key=parts[3];
+        if(!key)return;
+        if(!D[si])return;
+        if(!D[si]._extra)D[si]._extra={};
+        if(!D[si]._extra[key])D[si]._extra[key]={};
+        D[si]._extra[key][row.col_idx]=row.value;
+        if(!savedExtras[si])savedExtras[si]={};
+        if(!savedExtras[si][key])savedExtras[si][key]={};
+        savedExtras[si][key][row.col_idx]=row.value;
+      });
+    }
+    window._savedExtras=savedExtras;
+    // Seed product names into cells['1']
+    D.forEach(function(s){
+      s.products.forEach(function(pr){
+        if(!pr.cells)pr.cells={};
+        if(!pr.cells['1']||!pr.cells['1'].val)pr.cells['1']={val:pr.name,red:false};
+      });
+    });
+    renderMain();restoreExtras();go();
+    showStatus('✓ '+getTabName(tabId));
+    if(cb)cb();
+  })
+  .catch(function(e){showStatus('✗ Chyba načítání','red');console.error(e);});
+}
+
+// ── Switch tab ──
+function switchTab(id){
+  if(activeTab===id)return;
+  // Flush pending save for current tab first
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
+  saveCurrentTab().finally(function(){
+    activeTab=id;
+    loadTabCells(id);
+  });
+}
+
+function getTabName(id){
+  var t=tabs.find(function(t){return t.id===id;});return t?t.name:id;
+}
+
+// ══════════════════════════════════════════════════════
+// EXTRA ROWS (free rows under a product)
+// ══════════════════════════════════════════════════════
 function addExtraRow(afterTr,si){
   var extra=document.createElement('tr');
   extra.className='r-extra';
@@ -514,23 +688,6 @@ function addExtraRow(afterTr,si){
         D[si]._extra[key][ci]=ta.value;
         scheduleSave();
       };
-      ta.onpaste=function(e){
-        var txt=(e.clipboardData||window.clipboardData).getData('text');
-        if(txt.indexOf('\t')<0&&txt.indexOf('\n')<0)return;
-        e.preventDefault();
-        var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
-        var cols=raw.split('\t');
-        var inputs=extra.querySelectorAll('.ci');
-        cols.forEach(function(v,idx){
-          var inp=inputs[ci-1+idx];
-          if(inp){inp.value=v.trim();autoH(inp);
-            if(!D[si]._extra)D[si]._extra={};
-            if(!D[si]._extra[key])D[si]._extra[key]={};
-            D[si]._extra[key][ci+idx]=v.trim();
-            scheduleSave();
-          }
-        });
-      };
     })(ta,ci,key,si);
     td.appendChild(ta);extra.appendChild(td);
   }
@@ -541,12 +698,11 @@ function addExtraRow(afterTr,si){
   btnX.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;margin:4px auto;font-family:var(--font)';
   btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
   btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
-  btnX.onclick=function(){
-    // Delete all cells of this extra row from Supabase
-    for(var ci=1;ci<=5;ci++) deleteFromSB('e_'+si+'_'+key+'_'+ci);
+  (function(key,si,extra){btnX.onclick=function(){
+    for(var ci=1;ci<=5;ci++) deleteFromSB(makeExId(activeTab,si,key,ci));
     if(D[si]._extra)delete D[si]._extra[key];
     extra.remove();
-  };
+  };})(key,si,extra);
   tdX.appendChild(btnX);extra.appendChild(tdX);
   afterTr.parentNode.insertBefore(extra,afterTr.nextSibling);
   extra.querySelector('.ci').focus();
@@ -583,7 +739,7 @@ function restoreExtras(){
       btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
       btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
       (function(key,si,extra){btnX.onclick=function(){
-        for(var ci=1;ci<=5;ci++) deleteFromSB('e_'+si+'_'+key+'_'+ci);
+        for(var ci=1;ci<=5;ci++) deleteFromSB(makeExId(activeTab,si,key,ci));
         if(D[si]._extra)delete D[si]._extra[key];extra.remove();
       };})(key,+si,extra);
       tdX.appendChild(btnX);extra.appendChild(tdX);
@@ -593,44 +749,30 @@ function restoreExtras(){
   });
 }
 
-// ── UNDO (Ctrl+Z) ──
-var undoStack=[];
-function pushUndo(fn){undoStack.push(fn);if(undoStack.length>50)undoStack.shift();}
-function undo(){if(!undoStack.length)return;undoStack.pop()();}
-document.addEventListener('keydown',function(e){
-  if((e.ctrlKey||e.metaKey)&&e.key==='z'){
-    if(document.activeElement&&document.activeElement.tagName==='TEXTAREA')return;
-    e.preventDefault();undo();
-  }
-});
-
-// ── DELETE STORE ──
+// ══════════════════════════════════════════════════════
+// DELETE STORE
+// ══════════════════════════════════════════════════════
 function deleteStore(si,sec){
-  // Delete all Supabase rows for this store
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?store_idx=eq.'+si,{
-    method:'DELETE',headers:sbHeaders()
-  }).catch(function(){});
-  // Remove from DOM
+  // Delete this store's cells for ALL tabs (by store_idx)
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?store_idx=eq.'+si+'&extra_key=neq.__tablist__&extra_key=neq.__name__',{method:'DELETE',headers:sbH()}).catch(function(){});
   sec.remove();
-  // Remove from data (mark as deleted, keep index stable)
-  D[si]._deleted=true;
-  D[si].products=[];
-  D[si]._extra={};
-  // Update sidebar
-  renderSL();renderPL();go();
-  showStatus('✓ Smazáno');
+  D[si]._deleted=true;D[si].products=[];D[si]._extra={};
+  renderSL();renderPL();go();showStatus('✓ Smazáno');
 }
 
-// ── SAVE STORE NAME ──
+// ══════════════════════════════════════════════════════
+// SAVE STORE NAME
+// ══════════════════════════════════════════════════════
 function saveStoreName(si,name){
   fetch(SB_URL+'/rest/v1/'+TABLE,{
-    method:'POST',
-    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+    method:'POST',headers:sbHU(),
     body:JSON.stringify([{id:'sname_'+si,store_idx:si,prod_idx:null,col_idx:null,extra_key:'__name__',value:name}])
   }).then(function(r){if(r.ok)showStatus('✓ Uloženo');}).catch(function(){});
 }
 
-// ── ADD NEW STORE ──
+// ══════════════════════════════════════════════════════
+// ADD NEW STORE
+// ══════════════════════════════════════════════════════
 function addNewStore(){
   var name=prompt('Název nového obchodu:','');
   if(!name||!name.trim())return;
@@ -639,7 +781,6 @@ function addNewStore(){
   D.push({name:name,header_type:'yellow',products:[],_extra:{}});
   saveStoreName(si,name);
   renderSL();renderPL();
-  // Render just the new section
   var cont=document.getElementById('cont');
   var COLS=['Produkt','Materiál','Šarže','Číslo palety','Poznámka'];
   var sec=document.createElement('div');
@@ -651,27 +792,23 @@ function addNewStore(){
   nameEl.textContent=name;nameEl.title='Klikni pro úpravu názvu';
   nameEl.style.cssText='outline:none;cursor:text;min-width:60px;border-radius:3px;padding:1px 4px';
   nameEl.onfocus=function(){this.style.background='rgba(0,0,0,0.06)';};
-  nameEl.onblur=function(){
-    this.style.background='';
-    var newName=this.textContent.trim();
-    if(!newName)return;
-    D[si].name=newName;
-    var sBtn=document.querySelector('.sbtn[data-i="'+si+'"]');
-    if(sBtn){var lbl=sBtn.querySelector('.sbtn-lbl');if(lbl)lbl.textContent=newName;}
-    saveStoreName(si,newName);
-  };
+  nameEl.onblur=function(){this.style.background='';var n=this.textContent.trim();if(!n)return;D[si].name=n;var b=document.querySelector('.sbtn[data-i="'+si+'"]');if(b){var l=b.querySelector('.sbtn-lbl');if(l)l.textContent=n;}saveStoreName(si,n);};
   nameEl.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}};
   hdr.appendChild(nameEl);
-  var btnDel2=document.createElement('button');
-  btnDel2.textContent='🗑';btnDel2.title='Smazat obchod';
-  btnDel2.style.cssText='margin-left:auto;background:none;border:none;cursor:pointer;font-size:14px;opacity:.4;padding:2px 4px;border-radius:3px;line-height:1';
-  btnDel2.onmouseover=function(){this.style.opacity='1';this.style.background='rgba(220,38,38,0.15)';};
-  btnDel2.onmouseout=function(){this.style.opacity='.4';this.style.background='none';};
-  (function(si,sec){btnDel2.onclick=function(){
-    if(!confirm('Smazat obchod "'+D[si].name+'" včetně všech dat?'))return;
-    deleteStore(si,sec);
-  };})(si,sec);
-  hdr.appendChild(btnDel2);
+  var btnDel=document.createElement('button');
+  btnDel.textContent='🗑';btnDel.title='Smazat obchod';
+  btnDel.style.cssText='margin-left:auto;background:none;border:none;cursor:pointer;font-size:14px;opacity:.4;padding:2px 4px;border-radius:3px;line-height:1';
+  btnDel.onmouseover=function(){this.style.opacity='1';this.style.background='rgba(220,38,38,0.15)';};
+  btnDel.onmouseout=function(){this.style.opacity='.4';this.style.background='none';};
+  (function(si,sec){btnDel.onclick=function(){if(!confirm('Smazat obchod "'+D[si].name+'" včetně všech dat?'))return;deleteStore(si,sec);};})(si,sec);
+  hdr.appendChild(btnDel);
+  var btnNewProd=document.createElement('button');
+  btnNewProd.textContent='+ produkt';btnNewProd.title='Přidat nový produkt';
+  btnNewProd.style.cssText='margin-left:6px;background:rgba(0,0,0,0.07);border:1px solid rgba(0,0,0,0.15);border-radius:4px;cursor:pointer;font-size:10pt;color:#444;padding:2px 8px;font-family:var(--font);line-height:1.4';
+  btnNewProd.onmouseover=function(){this.style.background='rgba(0,0,0,0.13)';};
+  btnNewProd.onmouseout=function(){this.style.background='rgba(0,0,0,0.07)';};
+  (function(si){btnNewProd.onclick=function(){addNewProduct(si);};})(si);
+  hdr.appendChild(btnNewProd);
   var tbl=document.createElement('table');tbl.className='ptbl';
   var thead='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
   tbl.innerHTML=thead+'<tbody id="tb'+si+'"></tbody>';
@@ -680,194 +817,11 @@ function addNewStore(){
   sec.scrollIntoView({behavior:'smooth',block:'start'});
   go();
 }
-
 document.getElementById('btn-new-store').onclick=addNewStore;
-document.getElementById('btn-save').onclick=function(){
-  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  saveAll();
-};
 
-// ── LOAD BUTTON → reload from Supabase ──
-document.getElementById('btn-load').onclick=function(){
-  D.forEach(function(s){s.products.forEach(function(pr){var n=pr.cells&&pr.cells['1']?pr.cells['1']:null;pr.cells={};if(n)pr.cells['1']=n;});s._extra={};});
-  window._savedExtras={};
-  loadSaved();
-};
-
-// Remove file input (not needed anymore)
-var fi=document.getElementById('file-input');if(fi)fi.remove();
-
-// ── TAB SYSTEM ──
-var tabs=[];
-var activeTab=null;
-
-function todayStr(){
-  var d=new Date();
-  return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
-}
-function newTabId(){return 'tab_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);}
-
-// ── CLEAR ALL CELL DATA ──
-function clearAllCells(){
-  D.forEach(function(s){
-    s.products.forEach(function(pr){
-      // Keep col1 (product name), clear only editable cols 2-5
-      var name=pr.cells&&pr.cells['1']?pr.cells['1']:null;
-      pr.cells={};
-      if(name)pr.cells['1']=name;
-    });
-    s._extra={};
-  });
-  window._savedExtras={};
-}
-
-// ── COLLECT CURRENT CELLS ──
-function collectCells(tabId){
-  var rows=[];
-  D.forEach(function(s,si){
-    s.products.forEach(function(pr,pi){
-      if(!pr.cells)return;
-      for(var ci=1;ci<=5;ci++){
-        var cd=pr.cells[String(ci)];
-        if(cd&&cd.val)rows.push({
-          id:tabId+'_c_'+si+'_'+pi+'_'+ci,
-          store_idx:si,prod_idx:pi,col_idx:ci,
-          extra_key:tabId,value:cd.val
-        });
-      }
-    });
-    if(s._extra){
-      Object.keys(s._extra).forEach(function(key){
-        var vals=s._extra[key];
-        Object.keys(vals).forEach(function(ci){
-          if(vals[ci])rows.push({
-            id:tabId+'_e_'+si+'_'+key+'_'+ci,
-            store_idx:si,prod_idx:null,col_idx:+ci,
-            extra_key:tabId+'_ex_'+key,value:vals[ci]
-          });
-        });
-      });
-    }
-  });
-  return rows;
-}
-
-// ── SAVE CURRENT TAB ──
-function saveTabCells(tabId){
-  var rows=collectCells(tabId);
-  if(!rows.length)return Promise.resolve();
-  return fetch(SB_URL+'/rest/v1/'+TABLE,{
-    method:'POST',
-    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
-    body:JSON.stringify(rows)
-  });
-}
-
-// ── LOAD TAB CELLS ──
-function loadTabCells(tabId,cb){
-  showStatus('⟳ Načítám…','orange');
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId)+'&select=*&limit=5000',{headers:sbHeaders()})
-  .then(function(r){return r.json();})
-  .then(function(rows){
-    if(Array.isArray(rows)){
-      rows.forEach(function(row){
-        if(row.prod_idx===null)return;
-        var pr=D[row.store_idx]&&D[row.store_idx].products[row.prod_idx];
-        if(!pr)return;
-        if(!pr.cells)pr.cells={};
-        pr.cells[String(row.col_idx)]={val:row.value,red:false};
-      });
-    }
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(tabId+'_ex_')+'*&select=*&limit=2000',{headers:sbHeaders()});
-  })
-  .then(function(r){return r.json();})
-  .then(function(rows){
-    if(Array.isArray(rows)){
-      rows.forEach(function(row){
-        var si=row.store_idx;
-        var key=row.extra_key.replace(tabId+'_ex_','');
-        if(!D[si])return;
-        if(!D[si]._extra)D[si]._extra={};
-        if(!D[si]._extra[key])D[si]._extra[key]={};
-        D[si]._extra[key][row.col_idx]=row.value;
-      });
-      window._savedExtras={};
-      D.forEach(function(s,si){if(s._extra&&Object.keys(s._extra).length)window._savedExtras[si]=s._extra;});
-    }
-    // Seed pr.name into cells['1'] for any product that doesn't have it loaded from DB
-    D.forEach(function(s){
-      s.products.forEach(function(pr){
-        if(!pr.cells)pr.cells={};
-        if(!pr.cells['1']||!pr.cells['1'].val)pr.cells['1']={val:pr.name,red:false};
-      });
-    });
-    renderMain();restoreExtras();go();
-    showStatus('✓ '+getTabName(tabId));
-    if(cb)cb();
-  })
-  .catch(function(e){showStatus('✗ Chyba načítání','red');console.error(e);});
-}
-
-// ── SWITCH TAB ──
-function switchTab(id){
-  if(activeTab===id)return;
-  // Save current first, then switch
-  saveTabCells(activeTab).then(function(){
-    activeTab=id;
-    clearAllCells();
-    loadTabCells(id);
-  }).catch(function(){
-    activeTab=id;
-    clearAllCells();
-    loadTabCells(id);
-  });
-}
-
-function getTabName(id){
-  var t=tabs.find(function(t){return t.id===id;});return t?t.name:id;
-}
-
-// ── TAB LIST PERSISTENCE ──
-function saveTabList(){
-  fetch(SB_URL+'/rest/v1/'+TABLE,{
-    method:'POST',
-    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
-    body:JSON.stringify([{id:'__tablist__',store_idx:0,prod_idx:null,col_idx:null,extra_key:'__tablist__',value:JSON.stringify(tabs)}])
-  }).catch(function(){});
-}
-
-function loadTabList(cb){
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.__tablist__&select=value',{headers:sbHeaders()})
-  .then(function(r){return r.json();})
-  .then(function(rows){
-    if(rows&&rows.length&&rows[0].value)tabs=JSON.parse(rows[0].value);
-    if(!tabs.length){tabs=[{id:'vzor',name:'VZOR'}];saveTabList();}
-    cb();
-  })
-  .catch(function(){tabs=[{id:'vzor',name:'VZOR'}];cb();});
-}
-
-// ── DELETE TAB ──
-function deleteTab(id){
-  if(tabs.length<=1){alert('Nelze smazat poslední list.');return;}
-  var t=tabs.find(function(t){return t.id===id;});
-  if(!confirm('Smazat list "'+t.name+'" včetně všech dat?'))return;
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbHeaders()}).catch(function(){});
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.'+encodeURIComponent(id+'_ex_')+'*',{method:'DELETE',headers:sbHeaders()}).catch(function(){});
-  tabs=tabs.filter(function(t){return t.id!==id;});
-  saveTabList();
-  if(activeTab===id){
-    activeTab=tabs[0].id;
-    clearAllCells();
-    renderTabs();
-    loadTabCells(activeTab);
-  } else {
-    renderTabs();
-  }
-  showStatus('✓ Smazáno');
-}
-
-// ── RENDER TABS ──
+// ══════════════════════════════════════════════════════
+// RENDER TABS
+// ══════════════════════════════════════════════════════
 function renderTabs(){
   var bar=document.getElementById('tab-bar');
   bar.querySelectorAll('.tab').forEach(function(el){el.remove();});
@@ -879,126 +833,124 @@ function renderTabs(){
     var nameEl=document.createElement('input');
     nameEl.type='text';nameEl.className='tab-name';nameEl.value=t.name;
     nameEl.readOnly=true;
-    // Single click on inactive = switch; double click on active = edit
-    tab.onclick=function(e){
-      if(activeTab!==t.id){switchTab(t.id);renderTabs();}
-    };
-    nameEl.ondblclick=function(e){
-      if(activeTab===t.id){e.stopPropagation();this.readOnly=false;this.focus();this.select();}
-    };
+    tab.onclick=function(e){if(activeTab!==t.id){switchTab(t.id);renderTabs();}};
+    nameEl.ondblclick=function(e){if(activeTab===t.id){e.stopPropagation();this.readOnly=false;this.focus();this.select();}};
     nameEl.onblur=function(){this.readOnly=true;t.name=this.value.trim()||t.name;this.value=t.name;saveTabList();};
     nameEl.onkeydown=function(e){if(e.key==='Enter'){e.stopPropagation();this.blur();}e.stopPropagation();};
     tab.appendChild(nameEl);
-    var closeBtn=document.createElement('button');
-    closeBtn.className='tab-close';closeBtn.textContent='×';closeBtn.title='Smazat list';
-    (function(id){closeBtn.onclick=function(e){e.stopPropagation();deleteTab(id);};})(t.id);
-    tab.appendChild(closeBtn);
+    if(t.id!=='vzor'){
+      var closeBtn=document.createElement('button');
+      closeBtn.className='tab-close';closeBtn.textContent='×';closeBtn.title='Smazat list';
+      (function(id){closeBtn.onclick=function(e){e.stopPropagation();deleteTab(id);};})(t.id);
+      tab.appendChild(closeBtn);
+    }
     bar.insertBefore(tab,addBtn);
   });
 }
 
-// ── ADD NEW DAY (copy from VZOR) ──
+// ══════════════════════════════════════════════════════
+// DELETE TAB
+// ══════════════════════════════════════════════════════
+function deleteTab(id){
+  if(tabs.length<=1){alert('Nelze smazat poslední list.');return;}
+  if(id==='vzor'){alert('List VZOR nelze smazat.');return;}
+  var t=tabs.find(function(t){return t.id===id;});
+  if(!confirm('Smazat list "'+t.name+'" včetně všech dat?'))return;
+  // Delete all cells for this tab
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbH()}).catch(function(){});
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(id+'__ex'),{method:'DELETE',headers:sbH()}).catch(function(){});
+  tabs=tabs.filter(function(t){return t.id!==id;});
+  saveTabList();
+  if(activeTab===id){
+    activeTab=tabs[0].id;
+    renderTabs();
+    loadTabCells(activeTab);
+  } else {
+    renderTabs();
+  }
+  showStatus('✓ Smazáno');
+}
+
+// ══════════════════════════════════════════════════════
+// ADD NEW DAY (copy from VZOR)
+// ══════════════════════════════════════════════════════
 document.getElementById('tab-add').onclick=function(){
   var newId=newTabId();
   var name=todayStr();
   var existing=tabs.filter(function(t){return t.name.startsWith(name);}).length;
-  if(existing>0)name=name+' ('+(existing+1)+')';
+  if(existing>0)name=name+' ('+( existing+1)+')';
 
   showStatus('⟳ Kopíruji VZOR…','orange');
 
   // First save current tab
-  saveTabCells(activeTab).then(function(){
-    // Load VZOR cells
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbHeaders()});
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
+  saveCurrentTab()
+  .then(function(){
+    // Load VZOR cells (extra_key=vzor)
+    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbH()});
   })
   .then(function(r){return r.json();})
-  .then(function(vzorRows){
-    // Load VZOR extra rows too
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=like.vzor_ex_*&select=*&limit=2000',{headers:sbHeaders()})
+  .then(function(vzorCells){
+    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor__ex&select=*&limit=2000',{headers:sbH()})
     .then(function(r){return r.json();})
-    .then(function(extraRows){return {cells:vzorRows||[],extras:extraRows||[]};});
+    .then(function(vzorEx){return {cells:vzorCells||[],extras:vzorEx||[]};});
   })
   .then(function(vzor){
-    // Build new rows with newId
     var newRows=[];
     vzor.cells.forEach(function(row){
       if(row.prod_idx===null)return;
       newRows.push({
-        id:newId+'_c_'+row.store_idx+'_'+row.prod_idx+'_'+row.col_idx,
+        id:makeId(newId,row.store_idx,row.prod_idx,row.col_idx),
         store_idx:row.store_idx,prod_idx:row.prod_idx,col_idx:row.col_idx,
         extra_key:newId,value:row.value
       });
     });
     vzor.extras.forEach(function(row){
-      var key=row.extra_key.replace('vzor_ex_','');
+      // parse key from id: vzor|ex|si|key|ci
+      var parts=row.id.split('|');
+      var key=parts[3];
+      if(!key)return;
       newRows.push({
-        id:newId+'_e_'+row.store_idx+'_'+key+'_'+row.col_idx,
+        id:makeExId(newId,row.store_idx,key,row.col_idx),
         store_idx:row.store_idx,prod_idx:null,col_idx:row.col_idx,
-        extra_key:newId+'_ex_'+key,value:row.value
+        extra_key:newId+'__ex',value:row.value
       });
     });
-    if(!newRows.length)return;
-    return fetch(SB_URL+'/rest/v1/'+TABLE,{
-      method:'POST',
-      headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
-      body:JSON.stringify(newRows)
-    });
+    if(!newRows.length)return Promise.resolve();
+    return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(newRows)});
   })
   .then(function(){
     tabs.push({id:newId,name:name});
     saveTabList();
     activeTab=newId;
-    clearAllCells();
     renderTabs();
     loadTabCells(newId);
   })
   .catch(function(e){showStatus('✗ Chyba kopírování','red');console.error(e);});
 };
 
-// ── SAVE / LOAD BUTTONS ──
-var saveTimer=null;
-function scheduleSave(){
-  if(saveTimer)clearTimeout(saveTimer);
-  showStatus('● ukládám…','orange');
-  saveTimer=setTimeout(function(){
-    saveTabCells(activeTab).then(function(){showStatus('✓ Uloženo');});
-  },1200);
-}
-
+// ══════════════════════════════════════════════════════
+// MANUAL SAVE / RELOAD BUTTONS
+// ══════════════════════════════════════════════════════
 document.getElementById('btn-save').onclick=function(){
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  saveTabCells(activeTab).then(function(){showStatus('✓ Uloženo');});
+  saveCurrentTab().then(function(){showStatus('✓ Uloženo');}).catch(function(){showStatus('✗ Chyba','red');});
 };
 document.getElementById('btn-load').onclick=function(){
-  clearAllCells();loadTabCells(activeTab);
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
+  loadTabCells(activeTab);
 };
 
-// ── SAVE STORE NAME ──
-function saveStoreName(si,name){
-  fetch(SB_URL+'/rest/v1/'+TABLE,{
-    method:'POST',
-    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
-    body:JSON.stringify([{id:'sname_'+si,store_idx:si,prod_idx:null,col_idx:null,extra_key:'__name__',value:name}])
-  }).catch(function(){});
-}
-
-// ── DELETE STORE ──
-function deleteStore(si,sec){
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?store_idx=eq.'+si+'&extra_key=neq.__tablist__&extra_key=neq.__name__',{method:'DELETE',headers:sbHeaders()}).catch(function(){});
-  sec.remove();
-  D[si]._deleted=true;D[si].products=[];D[si]._extra={};
-  renderSL();renderPL();go();showStatus('✓ Smazáno');
-}
-
-// ── ADD NEW PRODUCT ──
+// ══════════════════════════════════════════════════════
+// ADD NEW PRODUCT
+// ══════════════════════════════════════════════════════
 function addNewProduct(si){
   var name=prompt('Název produktu:','');
   if(!name||!name.trim())return;
   name=name.trim();
   var pi=D[si].products.length;
-  var pr={name:name,row:0,row_type:'product',is_product:true,cells:{}};
+  var pr={name:name,row:0,row_type:'product',is_product:true,cells:{'1':{val:name,red:false}}};
   D[si].products.push(pr);
-  // Render the new row into the existing tbody
   var tb=document.getElementById('tb'+si);
   if(!tb)return;
   var tr=document.createElement('tr');
@@ -1009,34 +961,34 @@ function addNewProduct(si){
     if(ci>1)td.style.background='#fafff8';
     var ta=document.createElement('textarea');
     ta.className='ci';ta.rows=1;ta.spellcheck=false;
-    if(ci===1){ta.value=name;ta.style.fontWeight='bold';}
-    (function(ta,pr,ci){
+    (function(ta,pr,ci,si,pi){
       var prevVal='';
       ta.onfocus=function(){prevVal=ta.value;};
       ta.onblur=function(){if(ta.value!==prevVal){pushUndo(function(){ta.value=prevVal;autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:prevVal,red:false};scheduleSave();});}};
       ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};scheduleSave();};
-    })(ta,pr,ci);
-    (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
+      ta.onpaste=function(e){xlPaste(e,si,pi,ci);};
+    })(ta,pr,ci,si,pi);
     if(ci===1){
+      ta.value=name;
       td.style.cssText='padding:0;position:relative;';
-      var nameWrap2=document.createElement('div');
-      nameWrap2.style.cssText='display:flex;align-items:center;gap:2px;width:100%;';
+      var nameWrap=document.createElement('div');
+      nameWrap.style.cssText='display:flex;align-items:center;gap:2px;width:100%;';
       ta.style.cssText='flex:1;min-width:0;font-weight:bold;';
-      var btnDelInline2=document.createElement('button');
-      btnDelInline2.textContent='✕';btnDelInline2.title='Odebrat produkt';
-      btnDelInline2.style.cssText='flex-shrink:0;width:16px;height:16px;border:none;border-radius:3px;background:transparent;color:var(--g300);font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font);margin-right:3px';
-      btnDelInline2.onmouseover=function(){this.style.background='#fee2e2';this.style.color='#dc2626';};
-      btnDelInline2.onmouseout=function(){this.style.background='transparent';this.style.color='var(--g300)';};
-      (function(tr,si,pi){btnDelInline2.onclick=function(e){
+      var btnDI=document.createElement('button');
+      btnDI.textContent='✕';btnDI.title='Odebrat produkt';
+      btnDI.style.cssText='flex-shrink:0;width:16px;height:16px;border:none;border-radius:3px;background:transparent;color:var(--g300);font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font);margin-right:3px';
+      btnDI.onmouseover=function(){this.style.background='#fee2e2';this.style.color='#dc2626';};
+      btnDI.onmouseout=function(){this.style.background='transparent';this.style.color='var(--g300)';};
+      (function(tr,si,pi){btnDI.onclick=function(e){
         e.stopPropagation();
         if(!confirm('Odebrat produkt "'+D[si].products[pi].name+'"?'))return;
-        for(var ci=1;ci<=5;ci++) deleteFromSB(activeTab+'_c_'+si+'_'+pi+'_'+ci);
+        for(var ci=1;ci<=5;ci++) deleteFromSB(makeId(activeTab,si,pi,ci));
         D[si].products[pi]._deleted=true;
         tr.remove();
         renderSL();renderPL(document.getElementById('pls').value);
       };})(tr,si,pi);
-      nameWrap2.appendChild(ta);nameWrap2.appendChild(btnDelInline2);
-      td.appendChild(nameWrap2);
+      nameWrap.appendChild(ta);nameWrap.appendChild(btnDI);
+      td.appendChild(nameWrap);
     } else {
       td.appendChild(ta);
     }
@@ -1061,20 +1013,18 @@ function addNewProduct(si){
   (function(tr,pr,si,pi){btnClear.onclick=function(){
     var inputs=tr.querySelectorAll('.ci');
     for(var ci=1;ci<5;ci++){if(inputs[ci]){inputs[ci].value='';autoH(inputs[ci]);}}
-    for(var ci=2;ci<=5;ci++){pr.cells[String(ci)]={val:'',red:false};deleteFromSB(activeTab+'_c_'+si+'_'+pi+'_'+ci);}
+    for(var ci=2;ci<=5;ci++){pr.cells[String(ci)]={val:'',red:false};deleteFromSB(makeId(activeTab,si,pi,ci));}
   };})(tr,pr,si,pi);
   btnWrap.appendChild(btnPlus);btnWrap.appendChild(btnClear);
   tdPlus.appendChild(btnWrap);tr.appendChild(tdPlus);
   tb.appendChild(tr);
   autoH(tr.querySelectorAll('.ci')[0]);
   tr.querySelectorAll('.ci')[0].focus();
-  // Save new product name
-  if(!pr.cells['1'])pr.cells['1']={val:name,red:false};
   scheduleSave();
-  // Update product sidebar
   if(!ALL_PRODS.includes(name)){ALL_PRODS.push(name);ALL_PRODS.sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase(),'cs');});}
   renderPL(document.getElementById('pls').value);
 }
+
 
 // ── INIT ──
 loadTabList(function(){
