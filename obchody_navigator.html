@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Přehled obchodů – Avokádo & Mango</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+:root{
+  --yellow:#f5c400;--yl:#fff8d6;--ym:#ffe44d;
+  --blue-h:#1e40af;--blue-hb:#dbeafe;--blue-hborder:#93c5fd;
+  --green:#16a34a;--gl:#f0fdf4;
+  --red-l:#fff0f0;--blue:#2563eb;--bl:#eff6ff;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g300:#d1d5db;
+  --g400:#9ca3af;--g500:#6b7280;--g600:#4b5563;--g700:#374151;
+  --g800:#1f2937;--g900:#111827;
+  --lw:252px;--rw:238px;--hh:50px;
+  --font:'Calibri','Carlito','Trebuchet MS',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#topbar{height:var(--hh);background:#fff;border-bottom:1px solid var(--g200);display:flex;align-items:center;padding:0 14px;gap:12px;flex-shrink:0;z-index:50}
+#topbar h1{font-size:14px;font-weight:700;color:var(--g900);white-space:nowrap}
+#tsearch{flex:1;max-width:340px;height:28px;border:1px solid var(--g300);border-radius:5px;padding:0 9px 0 28px;font-family:var(--font);font-size:11pt;color:var(--g800);background:var(--g50) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' fill='none' stroke='%236b7280' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 8px center;outline:none}
+#tsearch:focus{border-color:var(--blue);background-color:#fff}
+.tstats{margin-left:auto;display:flex;gap:12px;color:var(--g500);font-size:11px;white-space:nowrap}
+.tstats b{color:var(--g700)}
+#io-btns{display:flex;align-items:center;gap:8px;flex-shrink:0}
+#btn-save,#btn-load{height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;border:none}
+#btn-save{background:var(--yellow);border:1px solid var(--ym);color:#000;font-weight:600}
+#btn-save:hover{background:var(--ym)}
+#btn-load{background:#fff;border:1px solid var(--g300);color:var(--g700);font-weight:500}
+#btn-load:hover{background:var(--g50);border-color:var(--g400)}
+#save-status{font-size:10px;color:var(--green);white-space:nowrap;min-width:60px}
+#layout{display:flex;flex:1;overflow:hidden;min-height:0}
+#sl,#sr{background:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;min-height:0}
+#sl{width:var(--lw);border-right:1px solid var(--g200)}
+#sr{width:var(--rw);border-left:1px solid var(--g200)}
+.sh{padding:9px 10px 7px;border-bottom:1px solid var(--g100);flex-shrink:0}
+.sh-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:6px}
+.ssearch{width:100%;height:24px;border:1px solid var(--g200);border-radius:4px;padding:0 7px;font-family:var(--font);font-size:11pt;color:var(--g700);outline:none}
+.ssearch:focus{border-color:var(--yellow)}
+#store-list,#prod-list{flex:1;overflow-y:auto;padding:2px 0}
+.sbtn{display:flex;align-items:center;width:100%;padding:5px 10px;border:none;background:none;cursor:pointer;text-align:left;gap:7px;border-left:3px solid transparent;color:var(--g700);font-family:var(--font);font-size:11pt;line-height:1.25}
+.sbtn:hover{background:var(--g50)}
+.sbtn-y:hover,.sbtn-b:hover{border-left-color:var(--ym)}
+.sbtn.active{color:#000;font-weight:700}
+.sbtn-y.active{background:var(--yl);border-left-color:var(--yellow)}
+.sbtn-b.active{background:var(--yl);border-left-color:var(--yellow)}
+.sbtn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sbtn-y .sbtn-dot{background:var(--yellow)}.sbtn-b .sbtn-dot{background:var(--yellow)}
+.sbtn-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sbtn-cnt{font-size:10px;color:var(--g400);background:var(--g100);border-radius:10px;padding:1px 6px;flex-shrink:0}
+.sbtn-y.active .sbtn-cnt{background:var(--ym);color:var(--g700)}
+.sbtn-b.active .sbtn-cnt{background:var(--ym);color:var(--g700)}
+.pbtn{display:flex;align-items:flex-start;width:100%;padding:4px 10px;border:none;background:none;cursor:pointer;text-align:left;gap:6px;border-right:3px solid transparent;color:var(--g600);font-family:var(--font);font-size:11pt;line-height:1.35}
+.pbtn:hover{background:var(--g50);border-right-color:var(--green);color:var(--g800)}
+.pbtn.active{background:var(--gl);border-right-color:var(--green);color:var(--green);font-weight:700}
+.pbtn-dot{width:5px;height:5px;border-radius:50%;background:var(--g300);flex-shrink:0;margin-top:4px}
+.pbtn.active .pbtn-dot{background:var(--green)}
+.pbtn-cnt{margin-left:auto;font-size:10px;color:var(--g400);flex-shrink:0;padding-top:2px}
+.pbtn.active .pbtn-cnt{color:var(--green)}
+#main{flex:1;overflow-y:auto;background:var(--g50);min-height:0}
+#fbar{display:none;background:var(--bl);border-bottom:1px solid #bfdbfe;padding:5px 14px;align-items:center;gap:10px;font-size:11pt;color:var(--blue);flex-shrink:0}
+#fbar.vis{display:flex}
+#fclear{margin-left:auto;background:none;border:1px solid var(--blue);border-radius:4px;padding:2px 9px;font-size:10px;color:var(--blue);cursor:pointer;font-family:var(--font)}
+#fclear:hover{background:var(--blue);color:#fff}
+.ssec{background:#fff;margin:10px 10px 0;border-radius:6px;border:1px solid var(--g200);overflow:hidden;scroll-margin-top:10px}
+.ssec:last-child{margin-bottom:10px}
+.ssec-hdr-y,.ssec-hdr-b{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--yl);border-bottom:2px solid var(--ym);flex-wrap:wrap}
+.ssec-name-y,.ssec-name-b{font-size:20pt;font-weight:bold;color:#000;font-family:var(--font);line-height:1.1}
+.ssec-badge{font-size:10pt;padding:2px 8px;border-radius:20px;white-space:nowrap;font-family:var(--font);align-self:center}
+.badge-y,.badge-b{background:rgba(245,196,0,.2);border:1px solid var(--ym);color:#7a5f00}
+.ptbl{width:100%;border-collapse:collapse}
+.ptbl thead tr{background:var(--g50)}
+.ptbl th{padding:4px 10px;text-align:left;font-size:9px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--g200);white-space:nowrap}
+.ptbl th:first-child{width:220px;min-width:160px}
+.ptbl th:nth-child(n+2){width:100px;min-width:70px}
+.ptbl td:nth-child(n+2){background:#fafff8;outline:1px solid #000;outline-offset:-1px}
+.ptbl tr:hover td:nth-child(n+2){background:#f0fdf4}
+.ptbl td:nth-child(n+2) .ci{background:#fafff8}
+.ptbl td:nth-child(n+2) .ci:focus{background:#fffbeb;box-shadow:inset 0 0 0 2px var(--yellow)}
+.ptbl th:nth-child(n+2)::after{content:' ✎';font-size:8px;opacity:.5}
+.ptbl td{padding:0;border-bottom:1px solid var(--g100);vertical-align:middle}
+.ptbl tr:last-child td{border-bottom:none}
+.ptbl tr:hover td{background:#fffcf0}
+.r-red td{background:var(--red-l)}
+.r-subsection td{background:var(--g50)}
+.r-extra td:first-child{background:transparent}
+.r-extra .ci{font-size:11pt;font-weight:bold;color:#ff0000;text-align:right}
+.r-extra .ci::placeholder{color:var(--g300);font-style:italic;font-weight:normal;text-align:left}
+.ptbl th:last-child{width:22px;padding:0}
+.ptbl td:last-child{width:22px;padding:0;border-bottom:1px solid var(--g100);background:transparent!important}
+.ci{width:100%;padding:4px 10px;border:none;outline:none;background:transparent;min-height:26px;resize:none;overflow:hidden;line-height:1.4;display:block;font-family:var(--font)}
+.ci:focus{background:#fffbeb;box-shadow:inset 0 0 0 2px var(--yellow);border-radius:2px}
+.r-product .ci{font-size:11pt;font-weight:bold;color:#000}
+.r-subsection .ci{font-size:13pt;font-weight:bold;color:#000}
+.r-red .ci{font-size:11pt;font-weight:bold;color:#ff0000}
+.r-note .ci{font-size:11pt;font-weight:normal;color:#000}
+.cell-red{color:#ff0000!important;font-weight:bold}
+.hidden{display:none!important}
+tr.hidden{display:none!important}
+#btop{position:fixed;bottom:16px;right:calc(var(--rw) + 10px);width:30px;height:30px;background:var(--g600);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;z-index:40}
+#btop.vis{opacity:1;transform:translateY(0)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g200);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <h1>🥑 Avokádo &amp; Mango</h1>
+  <input id="tsearch" type="search" placeholder="Hledat obchod nebo produkt…" autocomplete="off">
+  <div class="tstats">Obchody: <b id="ss">0</b>&nbsp; Produkty: <b id="sp">0</b>&nbsp; Řádky: <b id="sr2">0</b></div>
+  <div id="io-btns">
+    <button id="btn-save" title="Uložit do Supabase">💾 Uložit</button>
+    <button id="btn-load" title="Načíst aktuální data ze Supabase">🔄 Aktualizovat</button>
+    <span id="save-status"></span>
+  </div>
+</div>
+<div id="layout">
+  <div id="sl">
+    <div class="sh"><div class="sh-title">Obchody</div><input class="ssearch" id="sls" type="search" placeholder="Filtruj…" autocomplete="off"></div>
+    <div id="store-list"></div>
+  </div>
+  <div id="main-wrap" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
+    <div id="fbar"><span id="flbl"></span><button id="fclear">✕ Zrušit filtry</button></div>
+    <div id="main">
+      <div id="cont"></div>
+    </div>
+  </div>
+  <div id="sr">
+    <div class="sh"><div class="sh-title">Produkty</div><input class="ssearch" id="pls" type="search" placeholder="Filtruj…" autocomplete="off"></div>
+    <div id="prod-list"></div>
+  </div>
+</div>
+<button id="btop" title="Nahoru">↑</button>
+<script>
+const D=[{"name":"BILLA SK","row":10,"header_type":"blue","products":[{"name":"Mango 6 Tvrdé","row":13,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 6 Tvrdé","red":false}}},{"name":"Avokádo greenskin 12","row":22,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo greenskin 12","red":false}}},{"name":"Mango twinpack 12 RTE","row":31,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false}}},{"name":"Avo twinpack 24 RTE","row":36,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false}}},{"name":"Guacamole","row":40,"row_type":"product","is_product":true,"cells":{"1":{"val":"Guacamole","red":false}}},{"name":"Mango 8 RTE","row":42,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false}}},{"name":"Avokádo 16 RTE","row":48,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false}}},{"name":"Avokádo greenskin 18","row":63,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo greenskin 18","red":false}}}]},{"name":"TERNO  Olomouc, Zlin, H.K.","row":67,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":69,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}},{"name":"BIO avokádo","row":71,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO avokádo","red":false}}},{"name":"Mango 9 RTE","row":73,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 9 RTE","red":false}}}]},{"name":"TERNO SK ( ut,čt,ne)","row":76,"header_type":"blue","products":[{"name":"Avo twinpack 24 RTE","row":79,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false}}},{"name":"Mango twinpack 10 RTE","row":85,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 10 RTE","red":false}}},{"name":"Mango 8 RTE","row":89,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false}}},{"name":"Mango 10 tvrdé","row":93,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 10 tvrdé","red":false},"5":{"val":"Po 8ks","red":true}}},{"name":"BIO avokádo","row":96,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO avokádo","red":false}}}]},{"name":"Labaš","row":98,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":100,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}},{"name":"Avokádo 22 RTE","row":104,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}},{"name":"Mango 7 RTE","row":108,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 7 RTE","red":false}}},{"name":"Avokádo síť 500g 26-32","row":111,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo síť 500g 26-32","red":false}}}]},{"name":"M/M + VTO do 14:00","row":114,"header_type":"blue","products":[{"name":"Avokádo 14 RTE","row":118,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}},{"name":"Avo twinpack 24 RTE","row":133,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false}}},{"name":"Avo 4ks 22 RTE","row":139,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo 4ks 22 RTE","red":false},"5":{"val":"Do Titbit majoru","red":true}}},{"name":"Mango twinpack 10 RTE","row":145,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 10 RTE","red":false},"5":{"val":"Do Titbit majoru","red":true}}},{"name":"Avokádo síť 16","row":153,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo síť 16","red":false}}},{"name":"Mango 7 RTE","row":156,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 7 RTE","red":false}}},{"name":"BIO avokádo","row":161,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO avokádo","red":false}}},{"name":"Avokádo 18 RTE","row":164,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false},"5":{"val":"( tlak 4-5)","red":true}}}]},{"name":"Biedronka","row":169,"header_type":"blue","products":[{"name":"Avokádo 20 RTE","row":171,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 20 RTE","red":false},"5":{"val":"(tlak 4-9 ), natmavené","red":true}}},{"name":"Avokádo greenskin 16","row":175,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo greenskin 16","red":false}}},{"name":"Mango 8 RTE","row":178,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false},"5":{"val":"( tlak 3-5)","red":true}}},{"name":"Avokádo síť 500g 24-26","row":182,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo síť 500g 24-26","red":false}}}]},{"name":"Kifli","row":185,"header_type":"blue","products":[{"name":"Guacamole","row":187,"row_type":"product","is_product":true,"cells":{"1":{"val":"Guacamole","red":false},"5":{"val":"tlak 3-4","red":true}}},{"name":"Avo twinpack 24 RTE","row":193,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false},"5":{"val":"tlak 3-4","red":true}}},{"name":"Avokádo 16 RTE","row":199,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false},"5":{"val":"tlak 2-4","red":true}}},{"name":"BIO mango","row":202,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO mango","red":false}}},{"name":"Mango twinpack 12 RTE","row":205,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false}}},{"name":"Avokádo síť 500g 26-32","row":209,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo síť 500g 26-32","red":false}}}]},{"name":"YEME","row":213,"header_type":"blue","products":[{"name":"Avokádo 14 RTE","row":215,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}},{"name":"Mango 8 RTE","row":221,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false}}}]},{"name":"ROHLÍK","row":226,"header_type":"yellow","products":[{"name":"Avokádo 16 RTE","row":230,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false}}},{"name":"Avokádo 22 RTE","row":236,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}},{"name":"Mango 10 RTE","row":243,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 10 RTE","red":false}}},{"name":"Mango 12 tvrdé","row":247,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 12 tvrdé","red":false}}},{"name":"Mango twinpack 10 RTE","row":250,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 10 RTE","red":false}}},{"name":"Mango 6 RTE","row":254,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 6 RTE","red":false}}},{"name":"Guacamole","row":258,"row_type":"product","is_product":true,"cells":{"1":{"val":"Guacamole","red":false}}},{"name":"BIO mango","row":263,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO mango","red":false}}}]},{"name":"PENNY (po)","row":265,"header_type":"blue","products":[{"name":"Mango twinpack 12 RTE","row":266,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false},"5":{"val":"tlak 1-2","red":false}}},{"name":"Avo twinpack 24 RTE","row":280,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false},"5":{"val":"tlak 1-2","red":false}}}]},{"name":"AUCHAN (po,st,so)","row":295,"header_type":"yellow","products":[{"name":"Mango 10 RTE","row":297,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 10 RTE","red":false}}},{"name":"PS - kent","row":298,"row_type":"red","is_product":false,"cells":{"1":{"val":"PS - kent","red":true}}},{"name":"Guacamole","row":303,"row_type":"product","is_product":true,"cells":{"1":{"val":"Guacamole","red":false}}},{"name":"Avokádo 22 RTE","row":305,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}},{"name":"BR - Hass","row":306,"row_type":"red","is_product":false,"cells":{"1":{"val":"BR - Hass","red":true}}}]},{"name":"JIP + Benstar","row":308,"header_type":"blue","products":[{"name":"Avokádo 22 RTE","row":310,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}},{"name":"Mango twinpack 12 RTE","row":316,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false}}},{"name":"Avo twinpack 22 RTE","row":321,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 22 RTE","red":false}}}]},{"name":"Idelia (ut,čt,ne)","row":328,"header_type":"blue","products":[{"name":"Avokádo 16 RTE","row":329,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false}}},{"name":"Avokádo greenskin 16","row":334,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo greenskin 16","red":false}}},{"name":"Mango 8 RTE","row":337,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false}}},{"name":"BIO avokádo","row":340,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO avokádo","red":false}}}]},{"name":"BILLA CZ","row":343,"header_type":"blue","products":[{"name":"Avokádo 16 RTE","row":345,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false}}},{"name":"Mango 8 RTE","row":373,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false}}}]},{"name":"EUROGROUP ÚŽICE  (ut,pa,ne)","row":387,"header_type":"yellow","products":[{"name":"Avokádo 16 RTE","row":391,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false},"5":{"val":"(tlaky 7-10)","red":true}}},{"name":"Avokádo greenskin 16","row":407,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo greenskin 16","red":false}}},{"name":"Mango twinpack 12 RTE","row":414,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false}}},{"name":"Mango 8 RTE","row":419,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false}}},{"name":"Avokádo 22 tvrdé","row":433,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 tvrdé","red":false}}},{"name":"Avokádo síť 500g 26-32","row":444,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo síť 500g 26-32","red":false}}},{"name":"Guacamole","row":451,"row_type":"product","is_product":true,"cells":{"1":{"val":"Guacamole","red":false}}},{"name":"Avo twinpack 24 RTE","row":453,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false}}}]},{"name":"KOŠÍK","row":461,"header_type":"yellow","products":[{"name":"Avokádo 22 RTE","row":464,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}},{"name":"Avo twinpack 24 RTE","row":470,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false}}},{"name":"(Od wk21 20+22)","row":471,"row_type":"product","is_product":true,"cells":{"1":{"val":"(Od wk21 20+22)","red":false}}},{"name":"Avokádo 14 RTE","row":476,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}},{"name":"Mango twinpack 12 RTE","row":479,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false}}},{"name":"Mango 12 tvrdé","row":483,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 12 tvrdé","red":false}}},{"name":"Mango 10 RTE","row":486,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 10 RTE","red":false}}},{"name":"Mango 6 Tvrdé","row":492,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 6 Tvrdé","red":false}}},{"name":"Guacamole","row":495,"row_type":"product","is_product":true,"cells":{"1":{"val":"Guacamole","red":false}}},{"name":"BIO avokádo","row":501,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO avokádo","red":false}}},{"name":"Avokádo greenskin 16","row":504,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo greenskin 16","red":false}}},{"name":"Avokádo síť 500g 26-32","row":507,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo síť 500g 26-32","red":false}}}]},{"name":"GLOBUS","row":510,"header_type":"yellow","products":[{"name":"Avokádo 14 RTE","row":512,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}},{"name":"Avo twinpack 22 RTE","row":519,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 22 RTE","red":false}}},{"name":"Mango twinpack 10 RTE","row":525,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 10 RTE","red":false}}},{"name":"BIO avokádo","row":529,"row_type":"product","is_product":true,"cells":{"1":{"val":"BIO avokádo","red":false}}},{"name":"Letecké mango cal 9","row":532,"row_type":"product","is_product":true,"cells":{"1":{"val":"Letecké mango cal 9","red":false}}}]},{"name":"Nitrazdroj (ne)","row":534,"header_type":"yellow","products":[{"name":"Avokádo 16 RTE","row":537,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false}}},{"name":"Avo twinpack 24 RTE","row":541,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 24 RTE","red":false}}},{"name":"Avokádo greenskin 16","row":545,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo greenskin 16","red":false}}},{"name":"Mango 10 RTE","row":548,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 10 RTE","red":false}}}]},{"name":"NORMA","row":550,"header_type":"yellow","products":[{"name":"Avokádo 24 tvrdé","row":553,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 24 tvrdé","red":false}}},{"name":"Mango 12 tvrdé","row":556,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 12 tvrdé","red":false}}},{"name":"Avokádo síť 500g 26-32","row":559,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo síť 500g 26-32","red":false}}},{"name":"Mango 8 RTE","row":562,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 RTE","red":false}}},{"name":"Mango twinpack 12 RTE","row":564,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false}}}]},{"name":"Noskin (ut,ne)","row":566,"header_type":"yellow","products":[{"name":"Avokádo 22 RTE","row":567,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}},{"name":"Avokádo 16 RTE","row":571,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false}}},{"name":"Mango 7 RTE","row":575,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 7 RTE","red":false}}}]},{"name":"BONVENO","row":578,"header_type":"yellow","products":[{"name":"Mango 10 tvrdé","row":580,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 10 tvrdé","red":false}}},{"name":"Avokádo 22 RTE","row":583,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}}]},{"name":"Restaurace","row":587,"header_type":"blue","products":[{"name":"Avokádo 22 RTE","row":589,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}}]},{"name":"Sushitime","row":594,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":595,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}}]},{"name":"3FSushi Bistro","row":597,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":598,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}}]},{"name":"YAM YAM prodejny","row":601,"header_type":"blue","products":[{"name":"Avokádo 14 RTE","row":602,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}}]},{"name":"YAM YAM Sushi","row":607,"header_type":"blue","products":[{"name":"Avokádo 14 RTE","row":608,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}}]},{"name":"YAKITORI","row":613,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":614,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}}]},{"name":"Avokádo Bistro a Bar","row":618,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":619,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}}]},{"name":"AKOMI","row":622,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":623,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}}]},{"name":"Puzzle Salads (PS)","row":625,"header_type":"blue","products":[{"name":"Avokádo 14 RTE","row":626,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}}]},{"name":"Jaki Sushi","row":629,"header_type":"blue","products":[{"name":"Avokádo 14 RTE","row":630,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}}]},{"name":"IKASU sushi","row":636,"header_type":"blue","products":[{"name":"Avokádo 14 RTE","row":637,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 14 RTE","red":false}}}]},{"name":"POKE CZ","row":642,"header_type":"blue","products":[{"name":"Mango 10 RTE","row":644,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 10 RTE","red":false},"5":{"val":"(1-4)","red":false}}},{"name":"Avokádo 18 RTE","row":647,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false},"5":{"val":"Tlak (6-9)","red":false}}}]},{"name":"TEKOO A MÍČA (po,st)","row":648,"header_type":"blue","products":[{"name":"Avokádo 18 RTE","row":649,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}},{"name":"Mango 9 RTE","row":652,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 9 RTE","red":false}}},{"name":"Mango 8 tvrdé","row":656,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 tvrdé","red":false}}}]},{"name":"ZELIK","row":658,"header_type":"blue","products":[{"name":"Avokádo 20 RTE","row":660,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 20 RTE","red":false}}},{"name":"Avokádo 22 RTE","row":662,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}}]},{"name":"Gastrofresh","row":663,"header_type":"blue","products":[{"name":"Avokádo 16 RTE","row":665,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false},"5":{"val":"tlak kolem 6","red":true}}}]},{"name":"HORTI s.r.o. (so)","row":671,"header_type":"blue","products":[{"name":"Mango 12 RTE","row":673,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 12 RTE","red":false}}},{"name":"Avokádo 24 RTE","row":675,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 24 RTE","red":false}}},{"name":"Avokádo 16 tvrdé","row":679,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 tvrdé","red":false}}},{"name":"Avokádo 20 tvrdé","row":681,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 20 tvrdé","red":false}}},{"name":"Mango 8 tvrdé","row":683,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 8 tvrdé","red":false}}}]},{"name":"BAKKER","row":685,"header_type":"yellow","products":[{"name":"Avokádo 18 RTE","row":688,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false},"5":{"val":"Tlak (6-9)","red":false}}},{"name":"Mango 9 tvrdé","row":697,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 9 tvrdé","red":false},"5":{"val":"Tommy atkins neposílat ! Palmer pouze po dohodě","red":true}}}]},{"name":"DELMART","row":699,"header_type":"yellow","products":[{"name":"Avokádo 16 RTE","row":702,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false}}},{"name":"Avo twinpack 22 RTE","row":708,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 22 RTE","red":false}}},{"name":"Mango 7 RTE","row":713,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 7 RTE","red":false}}}]},{"name":"SPAR PL ( Koninko - ne. Czeladz - po.)","row":715,"header_type":"yellow","products":[{"name":"Avokádo 16 RTE","row":717,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 16 RTE","red":false},"5":{"val":"(tlak 4-6)","red":false}}},{"name":"Mango 12 tvrdé","row":721,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 12 tvrdé","red":false}}},{"name":"Avokádo Greenskin 22","row":724,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo Greenskin 22","red":false}}},{"name":"Mango 7 RTE","row":728,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 7 RTE","red":false},"5":{"val":"(4-6tlak)","red":false}}},{"name":"Avo twinpack 22 RTE","row":731,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avo twinpack 22 RTE","red":false}}},{"name":"Mango twinpack 12 RTE","row":737,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango twinpack 12 RTE","red":false}}}]},{"name":"Jednota (ne)","row":740,"header_type":"yellow","products":[{"name":"Mango 9 RTE","row":742,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 9 RTE","red":false}}},{"name":"Avokádo 18 RTE","row":744,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 18 RTE","red":false}}}]},{"name":"HORTIM SK (ne,čt)","row":746,"header_type":"yellow","products":[{"name":"Mango 12 RTE","row":749,"row_type":"product","is_product":true,"cells":{"1":{"val":"Mango 12 RTE","red":false}}},{"name":"Avokádo 22 RTE","row":752,"row_type":"product","is_product":true,"cells":{"1":{"val":"Avokádo 22 RTE","red":false}}}]}];
+const ALL_PRODS=["(Od wk21 20+22)", "Avo 4ks 22 RTE", "Avo twinpack 22 RTE", "Avo twinpack 24 RTE", "Avokádo 14 RTE", "Avokádo 16 RTE", "Avokádo 16 tvrdé", "Avokádo 18 RTE", "Avokádo 20 RTE", "Avokádo 20 tvrdé", "Avokádo 22 RTE", "Avokádo 22 tvrdé", "Avokádo 24 RTE", "Avokádo 24 tvrdé", "Avokádo greenskin 12", "Avokádo greenskin 16", "Avokádo greenskin 18", "Avokádo Greenskin 22", "Avokádo síť 16", "Avokádo síť 500g 24-26", "Avokádo síť 500g 26-32", "BIO avokádo", "BIO mango", "Guacamole", "Letecké mango cal 9", "Mango 10 RTE", "Mango 10 tvrdé", "Mango 12 RTE", "Mango 12 tvrdé", "Mango 6 RTE", "Mango 6 Tvrdé", "Mango 7 RTE", "Mango 8 RTE", "Mango 8 tvrdé", "Mango 9 RTE", "Mango 9 tvrdé", "Mango twinpack 10 RTE", "Mango twinpack 12 RTE"];
+let aStore=null,aProd=null,sTerm='';
+
+function parseSched(name){
+  const m=name.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  return m?{n:m[1].trim(),s:m[2].trim()}:{n:name.trim(),s:''};
+}
+
+function renderSL(f){
+  f=f||'';
+  const el=document.getElementById('store-list');el.innerHTML='';
+  const fl=f.toLowerCase();
+  D.forEach(function(s,i){
+    if(fl&&s.name.toLowerCase().indexOf(fl)<0)return;
+    const p=parseSched(s.name);const n=p.n;
+    const cnt=s.products.filter(function(p){return p.is_product;}).length;
+    const isB=s.header_type==='blue';
+    const b=document.createElement('button');
+    b.className='sbtn '+(isB?'sbtn-b':'sbtn-y')+(aStore===i?' active':'');
+    b.dataset.i=i;
+    b.innerHTML='<div class="sbtn-dot"></div><div class="sbtn-lbl" title="'+s.name+'">'+n+'</div><div class="sbtn-cnt">'+cnt+'</div>';
+    b.onclick=function(){aStore=aStore===i?null:i;aProd=null;go();renderSL(f);renderPL(document.getElementById('pls').value);};
+    el.appendChild(b);
+  });
+}
+
+function renderPL(f){
+  f=f||'';
+  const el=document.getElementById('prod-list');el.innerHTML='';
+  const fl=f.toLowerCase();
+  const src=aStore!==null?[D[aStore]]:D;
+  ALL_PRODS.forEach(function(pn){
+    if(fl&&pn.toLowerCase().indexOf(fl)<0)return;
+    const cnt=src.filter(function(s){return s.products.some(function(p){return p.name===pn&&p.is_product;});}).length;
+    if(!cnt)return;
+    const b=document.createElement('button');
+    b.className='pbtn'+(aProd===pn?' active':'');
+    b.innerHTML='<div class="pbtn-dot"></div><span>'+pn+'</span><span class="pbtn-cnt">'+cnt+'</span>';
+    b.onclick=function(){aProd=aProd===pn?null:pn;go();renderPL(f);};
+    el.appendChild(b);
+  });
+}
+
+function renderMain(){
+  const cont=document.getElementById('cont');cont.innerHTML='';
+  const COLS=['Produkt','Materiál','Šarže','Číslo palety','Poznámka'];
+  D.forEach(function(s,si){
+    const p=parseSched(s.name);const n=p.n;const sched=p.s;
+    const isB=s.header_type==='blue';
+    const sec=document.createElement('div');
+    sec.className='ssec';sec.id='sec'+si;
+    const hdrCls=isB?'ssec-hdr-b':'ssec-hdr-y';
+    const nameCls=isB?'ssec-name-b':'ssec-name-y';
+    const bCls=isB?'ssec-badge badge-b':'ssec-badge badge-y';
+    const badge=sched?'<span class="'+bCls+'">📅 '+sched+'</span>':'';
+    const thead='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
+    sec.innerHTML='<div class="'+hdrCls+'"><div class="'+nameCls+'">'+n+'</div>'+badge+'</div>'+
+      '<table class="ptbl">'+thead+'<tbody id="tb'+si+'"></tbody></table>';
+    cont.appendChild(sec);
+    const tb=sec.querySelector('#tb'+si);
+    s.products.forEach(function(pr,pi){
+      var hasData=pr.name;
+      if(!hasData&&pr.cells){var ks=Object.keys(pr.cells);for(var ki=0;ki<ks.length;ki++){if(pr.cells[ks[ki]]&&pr.cells[ks[ki]].val){hasData=true;break;}}}
+      if(!hasData)return;
+      const tr=document.createElement('tr');
+      tr.dataset.si=si;tr.dataset.pi=pi;tr.dataset.name=pr.name;tr.dataset.ip=pr.is_product?1:0;
+      tr.className='r-'+(pr.row_type||'product');
+      for(var ci=1;ci<=5;ci++){
+        const td=document.createElement('td');
+        const ta=document.createElement('textarea');
+        ta.className='ci';
+        const cd=pr.cells&&pr.cells[String(ci)];
+        ta.value=cd?cd.val:'';
+        ta.rows=1;ta.spellcheck=false;
+        if(cd&&cd.red)ta.classList.add('cell-red');
+        (function(ta,pr,ci){
+          var prevVal='';
+          ta.onfocus=function(){prevVal=ta.value;};
+          ta.onblur=function(){
+            var newVal=ta.value;
+            if(newVal!==prevVal){
+              var oldVal=prevVal;
+              pushUndo(function(){
+                ta.value=oldVal;autoH(ta);
+                if(!pr.cells)pr.cells={};
+                pr.cells[String(ci)]={val:oldVal,red:false};
+                scheduleSave();
+              });
+            }
+          };
+          ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};scheduleSave();};
+        })(ta,pr,ci);
+        (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
+        td.appendChild(ta);tr.appendChild(td);
+      }
+      // + button cell
+      var tdPlus=document.createElement('td');
+      tdPlus.style.cssText='width:22px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
+      var btnPlus=document.createElement('button');
+      btnPlus.textContent='+';
+      btnPlus.title='Přidat řádek';
+      btnPlus.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g500);font-size:11px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;margin:4px auto;font-family:var(--font)';
+      btnPlus.onmouseover=function(){this.style.background='var(--yl)';this.style.borderColor='var(--yellow)';this.style.color='#000';};
+      btnPlus.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g500)';};
+      (function(tr,si){
+        btnPlus.onclick=function(){addExtraRow(tr,si);};
+      })(tr,si);
+      tdPlus.appendChild(btnPlus);
+      tr.appendChild(tdPlus);
+      tb.appendChild(tr);
+    });
+  });
+  document.querySelectorAll('.ci').forEach(autoH);
+}
+
+function autoH(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+
+function xlPaste(e,si,pi,startCol){
+  startCol=startCol||1;
+  const txt=(e.clipboardData||window.clipboardData).getData('text');
+  // Always intercept – even single cell may have \n inside
+  e.preventDefault();
+  // Normalize line endings, trim trailing newline
+  const raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
+  const rows=raw.split('\n').filter(function(r){return r!=='';});
+  const tb=document.getElementById('tb'+si);
+  const trs=[].slice.call(tb.querySelectorAll('tr'));
+  var startI=-1;
+  for(var i=0;i<trs.length;i++){if(+trs[i].dataset.pi===pi){startI=i;break;}}
+  if(startI<0)return;
+  rows.forEach(function(row,ri){
+    const cols=row.split('\t');
+    const tr=trs[startI+ri];if(!tr)return;
+    const inputs=tr.querySelectorAll('.ci');
+    cols.forEach(function(v,ci){
+      var inputIdx=startCol-1+ci; // offset by start column
+      if(inputs[inputIdx]){
+        inputs[inputIdx].value=v.trim();autoH(inputs[inputIdx]);
+        const tpi=+tr.dataset.pi;const ckey=String(startCol+ci);
+        const tsi=+tr.dataset.si;
+        if(!D[tsi].products[tpi].cells)D[tsi].products[tpi].cells={};
+        D[tsi].products[tpi].cells[ckey]={val:v.trim(),red:false};
+        scheduleSave();
+      }
+    });
+  });
+}
+
+function go(){
+  const sl=sTerm.toLowerCase();var vs=0,vp=0,vr=0;
+  document.querySelectorAll('.ssec').forEach(function(sec,si){
+    if(aStore!==null&&aStore!==si){sec.classList.add('hidden');return;}
+    const s=D[si];
+    const snm=!sl||s.name.toLowerCase().indexOf(sl)>=0;
+    const trs=sec.querySelectorAll('tbody tr');var any=false;
+    trs.forEach(function(tr){
+      const n=tr.dataset.name;const ip=tr.dataset.ip==='1';
+      const pm=aProd===null||n===aProd;
+      const tm=!sl||n.toLowerCase().indexOf(sl)>=0||snm;
+      const vis=pm&&tm;
+      tr.classList.toggle('hidden',!vis);
+      if(vis){any=true;vr++;if(ip)vp++;}
+    });
+    const show=any||(snm&&aProd===null);
+    sec.classList.toggle('hidden',!show);if(show)vs++;
+  });
+  document.getElementById('ss').textContent=vs;
+  document.getElementById('sp').textContent=vp;
+  document.getElementById('sr2').textContent=vr;
+  const fb=document.getElementById('fbar');const lbs=[];
+  if(aStore!==null)lbs.push('Obchod: '+parseSched(D[aStore].name).n);
+  if(aProd!==null)lbs.push('Produkt: '+aProd);
+  if(sl)lbs.push('Hledám: "'+sTerm+'"');
+  if(lbs.length){fb.classList.add('vis');document.getElementById('flbl').textContent=lbs.join(' · ');}
+  else fb.classList.remove('vis');
+  if(aStore!==null){var s=document.getElementById('sec'+aStore);if(s)s.scrollIntoView({behavior:'smooth',block:'start'});}
+}
+
+// ── LOCALSTORAGE SAVE / LOAD ──
+// ── SUPABASE CONFIG ──
+var SB_URL='https://gzxbqeefnmeojtpkjwta.supabase.co';
+var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6eGJxZWVmbm1lb2p0cGtqd3RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0ODczNTEsImV4cCI6MjA5NTA2MzM1MX0.pd94Eye10CQxhxqnR0gG23rWWgglRzjqaOF4Db9Altg';
+var TABLE='avomango_cells';
+
+function sbHeaders(){
+  return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'};
+}
+
+// ── STATUS ──
+function showStatus(msg,color){
+  var el=document.getElementById('save-status');
+  el.textContent=msg;
+  el.style.color=color||'var(--green)';
+  if(color!=='orange')setTimeout(function(){el.textContent='';},3000);
+}
+
+// ── COLLECT ALL DATA ──
+function collectData(){
+  var rows=[];
+  D.forEach(function(s,si){
+    s.products.forEach(function(pr,pi){
+      if(!pr.cells)return;
+      for(var ci=1;ci<=5;ci++){
+        var cd=pr.cells[String(ci)];
+        if(cd&&cd.val){
+          rows.push({
+            id:'c_'+si+'_'+pi+'_'+ci,
+            store_idx:si,prod_idx:pi,col_idx:ci,
+            extra_key:null,value:cd.val
+          });
+        }
+      }
+    });
+    if(s._extra){
+      Object.keys(s._extra).forEach(function(key){
+        var vals=s._extra[key];
+        Object.keys(vals).forEach(function(ci){
+          if(vals[ci]){
+            rows.push({
+              id:'e_'+si+'_'+key+'_'+ci,
+              store_idx:si,prod_idx:null,col_idx:+ci,
+              extra_key:key,value:vals[ci]
+            });
+          }
+        });
+      });
+    }
+  });
+  return rows;
+}
+
+// ── SAVE TO SUPABASE ──
+var saveTimer=null;
+function scheduleSave(){
+  if(saveTimer)clearTimeout(saveTimer);
+  showStatus('● ukládám…','orange');
+  saveTimer=setTimeout(saveAll,1200);
+}
+
+function saveAll(){
+  var rows=collectData();
+  if(!rows.length){showStatus('✓ Uloženo');return;}
+  fetch(SB_URL+'/rest/v1/'+TABLE,{
+    method:'POST',
+    headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+    body:JSON.stringify(rows)
+  }).then(function(r){
+    if(r.ok){showStatus('✓ Uloženo');}
+    else{r.text().then(function(t){showStatus('✗ Chyba: '+t,'red');});}
+  }).catch(function(e){showStatus('✗ Offline: '+e.message,'red');});
+}
+
+// ── LOAD FROM SUPABASE ──
+function loadSaved(){
+  showStatus('⟳ Načítám…','orange');
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?select=*&limit=10000',{
+    headers:sbHeaders()
+  }).then(function(r){return r.json();})
+  .then(function(rows){
+    if(!Array.isArray(rows)||!rows.length){showStatus('');return;}
+    rows.forEach(function(row){
+      if(row.extra_key){
+        // Extra row
+        var si=row.store_idx;
+        if(!D[si])return;
+        if(!D[si]._extra)D[si]._extra={};
+        if(!D[si]._extra[row.extra_key])D[si]._extra[row.extra_key]={};
+        D[si]._extra[row.extra_key][row.col_idx]=row.value;
+      } else {
+        // Regular cell
+        var pr=D[row.store_idx]&&D[row.store_idx].products[row.prod_idx];
+        if(!pr)return;
+        if(!pr.cells)pr.cells={};
+        pr.cells[String(row.col_idx)]={val:row.value,red:pr.cells[String(row.col_idx)]?pr.cells[String(row.col_idx)].red:false};
+      }
+    });
+    window._savedExtras={};
+    D.forEach(function(s,si){if(s._extra)window._savedExtras[si]=s._extra;});
+    renderMain();restoreExtras();go();
+    showStatus('✓ Načteno');
+  }).catch(function(e){
+    showStatus('✗ Offline','red');
+  });
+}
+
+// ── DELETE ROW FROM SUPABASE ──
+function deleteFromSB(id){
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.'+encodeURIComponent(id),{
+    method:'DELETE',headers:sbHeaders()
+  }).catch(function(){});
+}
+
+// ── EXTRA ROWS (with SB delete on remove) ──
+function addExtraRow(afterTr,si){
+  var extra=document.createElement('tr');
+  extra.className='r-extra';
+  extra.dataset.si=si;extra.dataset.ip=0;extra.dataset.name='';
+  var key='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  extra.dataset.key=key;
+  for(var ci=1;ci<=5;ci++){
+    var td=document.createElement('td');
+    if(ci===1)td.style.cssText='padding:0;border-bottom:1px solid var(--g100);';
+    else td.style.cssText='padding:0;border-bottom:1px solid var(--g100);background:#fafff8';
+    var ta=document.createElement('textarea');
+    ta.className='ci';ta.rows=1;ta.spellcheck=false;
+    ta.placeholder=ci===1?'volný řádek…':'';
+    (function(ta,ci,key,si){
+      ta.oninput=function(){
+        autoH(ta);
+        if(!D[si]._extra)D[si]._extra={};
+        if(!D[si]._extra[key])D[si]._extra[key]={};
+        D[si]._extra[key][ci]=ta.value;
+        scheduleSave();
+      };
+      ta.onpaste=function(e){
+        var txt=(e.clipboardData||window.clipboardData).getData('text');
+        if(txt.indexOf('\t')<0&&txt.indexOf('\n')<0)return;
+        e.preventDefault();
+        var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
+        var cols=raw.split('\t');
+        var inputs=extra.querySelectorAll('.ci');
+        cols.forEach(function(v,idx){
+          var inp=inputs[ci-1+idx];
+          if(inp){inp.value=v.trim();autoH(inp);
+            if(!D[si]._extra)D[si]._extra={};
+            if(!D[si]._extra[key])D[si]._extra[key]={};
+            D[si]._extra[key][ci+idx]=v.trim();
+            scheduleSave();
+          }
+        });
+      };
+    })(ta,ci,key,si);
+    td.appendChild(ta);extra.appendChild(td);
+  }
+  var tdX=document.createElement('td');
+  tdX.style.cssText='width:22px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
+  var btnX=document.createElement('button');
+  btnX.textContent='×';btnX.title='Odebrat řádek';
+  btnX.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;margin:4px auto;font-family:var(--font)';
+  btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
+  btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
+  btnX.onclick=function(){
+    // Delete all cells of this extra row from Supabase
+    for(var ci=1;ci<=5;ci++) deleteFromSB('e_'+si+'_'+key+'_'+ci);
+    if(D[si]._extra)delete D[si]._extra[key];
+    extra.remove();
+  };
+  tdX.appendChild(btnX);extra.appendChild(tdX);
+  afterTr.parentNode.insertBefore(extra,afterTr.nextSibling);
+  extra.querySelector('.ci').focus();
+}
+
+function restoreExtras(){
+  if(!window._savedExtras)return;
+  Object.keys(window._savedExtras).forEach(function(si){
+    var extras=window._savedExtras[si];
+    var tb=document.getElementById('tb'+si);if(!tb)return;
+    Object.keys(extras).forEach(function(key){
+      var vals=extras[key];
+      if(!D[+si]._extra)D[+si]._extra={};
+      D[+si]._extra[key]=vals;
+      var extra=document.createElement('tr');
+      extra.className='r-extra';extra.dataset.si=si;extra.dataset.ip=0;extra.dataset.name='';extra.dataset.key=key;
+      for(var ci=1;ci<=5;ci++){
+        var td=document.createElement('td');
+        if(ci===1)td.style.cssText='padding:0;border-bottom:1px solid var(--g100);';
+        else td.style.cssText='padding:0;border-bottom:1px solid var(--g100);background:#fafff8';
+        var ta=document.createElement('textarea');
+        ta.className='ci';ta.rows=1;ta.spellcheck=false;
+        ta.value=vals[ci]||'';
+        (function(ta,ci,key,si){
+          ta.oninput=function(){autoH(ta);if(!D[si]._extra)D[si]._extra={};if(!D[si]._extra[key])D[si]._extra[key]={};D[si]._extra[key][ci]=ta.value;scheduleSave();};
+        })(ta,ci,key,+si);
+        td.appendChild(ta);extra.appendChild(td);
+      }
+      var tdX=document.createElement('td');
+      tdX.style.cssText='width:22px;padding:0;vertical-align:middle';
+      var btnX=document.createElement('button');
+      btnX.textContent='×';btnX.title='Odebrat řádek';
+      btnX.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;margin:4px auto';
+      btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
+      btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
+      (function(key,si,extra){btnX.onclick=function(){
+        for(var ci=1;ci<=5;ci++) deleteFromSB('e_'+si+'_'+key+'_'+ci);
+        if(D[si]._extra)delete D[si]._extra[key];extra.remove();
+      };})(key,+si,extra);
+      tdX.appendChild(btnX);extra.appendChild(tdX);
+      tb.appendChild(extra);
+      extra.querySelectorAll('.ci').forEach(autoH);
+    });
+  });
+}
+
+// ── UNDO (Ctrl+Z) ──
+var undoStack=[];
+function pushUndo(fn){undoStack.push(fn);if(undoStack.length>50)undoStack.shift();}
+function undo(){if(!undoStack.length)return;undoStack.pop()();}
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){
+    if(document.activeElement&&document.activeElement.tagName==='TEXTAREA')return;
+    e.preventDefault();undo();
+  }
+});
+
+// ── MANUAL SAVE BUTTON (force immediate save) ──
+document.getElementById('btn-save').onclick=function(){
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
+  saveAll();
+};
+
+// ── LOAD BUTTON → reload from Supabase ──
+document.getElementById('btn-load').onclick=function(){
+  D.forEach(function(s){s.products.forEach(function(pr){pr.cells={};});s._extra={};});
+  window._savedExtras={};
+  loadSaved();
+};
+
+// Remove file input (not needed anymore)
+var fi=document.getElementById('file-input');if(fi)fi.remove();
+
+loadSaved();
+renderSL();renderPL();renderMain();go();
+
+document.getElementById('tsearch').oninput=function(e){sTerm=e.target.value;go();renderSL(document.getElementById('sls').value);renderPL(document.getElementById('pls').value);};
+document.getElementById('sls').oninput=function(e){renderSL(e.target.value);};
+document.getElementById('pls').oninput=function(e){renderPL(e.target.value);};
+document.getElementById('fclear').onclick=function(){aStore=null;aProd=null;sTerm='';document.getElementById('tsearch').value='';renderSL();renderPL();go();};
+
+var io=new IntersectionObserver(function(en){en.forEach(function(e){
+  if(e.isIntersecting&&aStore===null){
+    var i=+e.target.id.replace('sec','');
+    document.querySelectorAll('.sbtn').forEach(function(b){b.classList.remove('active');});
+    var b=document.querySelector('.sbtn[data-i="'+i+'"]');
+    if(b){b.classList.add('active');b.scrollIntoView({block:'nearest'});}
+  }
+});},{threshold:.25,rootMargin:'-5% 0px -55% 0px'});
+document.querySelectorAll('.ssec').forEach(function(s){io.observe(s);});
+
+var bt=document.getElementById('btop');var mn=document.getElementById('main');
+mn.onscroll=function(){bt.classList.toggle('vis',mn.scrollTop>200);};
+bt.onclick=function(){mn.scrollTo({top:0,behavior:'smooth'});};
+</script>
+</body>
+</html>
