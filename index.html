@@ -451,12 +451,21 @@ function go(){
     const s=D[si];
     const snm=!sl||s.name.toLowerCase().indexOf(sl)>=0;
     const trs=sec.querySelectorAll('tbody tr');var any=false;
+    var lastProductVis=false;
     trs.forEach(function(tr){
+      const isExtra=tr.classList.contains('r-extra');
+      if(isExtra){
+        // Extra řádky jsou viditelné právě tehdy, když je viditelný jejich nadřazený produkt
+        tr.classList.toggle('hidden',!lastProductVis);
+        if(lastProductVis){any=true;vr++;}
+        return;
+      }
       const n=tr.dataset.name;const ip=tr.dataset.ip==='1';
       const pm=aProd===null||n===aProd;
       const tm=!sl||n.toLowerCase().indexOf(sl)>=0||snm;
       const vis=pm&&tm;
       tr.classList.toggle('hidden',!vis);
+      lastProductVis=vis;
       if(vis){any=true;vr++;if(ip)vp++;}
     });
     const show=any||(snm&&aProd===null);
