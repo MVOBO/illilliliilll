@@ -44,6 +44,10 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 .ssearch:focus{border-color:var(--yellow)}
 #store-list,#prod-list{flex:1;overflow-y:auto;padding:2px 0}
 .sbtn{display:flex;align-items:center;width:100%;padding:5px 10px;border:none;background:none;cursor:pointer;text-align:left;gap:7px;border-left:3px solid transparent;color:var(--g700);font-family:var(--font);font-size:11pt;line-height:1.25}
+.sbtn-drag{cursor:grab;font-size:11px;color:var(--g300);flex-shrink:0;padding:0 2px;user-select:none;line-height:1}
+.sbtn-drag:hover{color:var(--g500)}
+.sbtn.dragging{opacity:.35;background:var(--g100)}
+.sbtn.drag-over{border-top:2px solid var(--yellow)}
 .sbtn:hover{background:var(--g50)}
 .sbtn-y:hover,.sbtn-b:hover{border-left-color:var(--ym)}
 .sbtn.active{color:#000;font-weight:700}
@@ -186,22 +190,76 @@ function renderSL(f){
   f=f||'';
   const el=document.getElementById('store-list');el.innerHTML='';
   const fl=f.toLowerCase();
-  D.forEach(function(s,i){
-    if(s._deleted)return;
+  var order=getStoreOrder();
+  var dragSrcIdx=null;  // store_idx táhnutého prvku
+
+  order.forEach(function(i){
+    const s=D[i];
+    if(!s||s._deleted)return;
     if(fl&&s.name.toLowerCase().indexOf(fl)<0)return;
     const p=parseSched(s.name);const n=p.n;
     const cnt=s.products.filter(function(p){return p.is_product&&!p._deleted;}).length;
     const isB=s.header_type==='blue';
-    const b=document.createElement('button');
+    const b=document.createElement('div');
     b.className='sbtn '+(isB?'sbtn-b':'sbtn-y');
     b.dataset.i=i;
-    b.innerHTML='<div class="sbtn-dot"></div><div class="sbtn-lbl" title="'+s.name+'">'+n+'</div><div class="sbtn-cnt">'+cnt+'</div>';
-    b.onclick=function(){
+    b.draggable=true;
+
+    // Táhací úchyt
+    var grip=document.createElement('span');
+    grip.className='sbtn-drag';
+    grip.textContent='⠿';
+    grip.title='Přetáhni pro změnu pořadí';
+    grip.addEventListener('mousedown',function(e){e.stopPropagation();});
+
+    var dot=document.createElement('div');dot.className='sbtn-dot';
+    var lbl=document.createElement('div');lbl.className='sbtn-lbl';lbl.title=s.name;lbl.textContent=n;
+    var cnt_el=document.createElement('div');cnt_el.className='sbtn-cnt';cnt_el.textContent=cnt;
+
+    b.appendChild(grip);b.appendChild(dot);b.appendChild(lbl);b.appendChild(cnt_el);
+
+    // Klik pro scroll (pouze pokud není drag)
+    b.addEventListener('click',function(){
       document.querySelectorAll('#store-list .sbtn').forEach(function(btn){btn.classList.remove('active');});
       b.classList.add('active');
       var sec=document.getElementById('sec'+i);
       if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
-    };
+    });
+
+    // Drag & drop events
+    b.addEventListener('dragstart',function(e){
+      dragSrcIdx=i;
+      b.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',String(i));
+    });
+    b.addEventListener('dragend',function(){
+      b.classList.remove('dragging');
+      document.querySelectorAll('#store-list .sbtn').forEach(function(x){x.classList.remove('drag-over');});
+    });
+    b.addEventListener('dragover',function(e){
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      document.querySelectorAll('#store-list .sbtn').forEach(function(x){x.classList.remove('drag-over');});
+      if(dragSrcIdx!==i)b.classList.add('drag-over');
+    });
+    b.addEventListener('dragleave',function(){b.classList.remove('drag-over');});
+    b.addEventListener('drop',function(e){
+      e.preventDefault();b.classList.remove('drag-over');
+      if(dragSrcIdx===null||dragSrcIdx===i)return;
+      // Přesun v poli storeOrder
+      var order2=getStoreOrder();
+      var fromPos=order2.indexOf(dragSrcIdx);
+      var toPos=order2.indexOf(i);
+      if(fromPos<0||toPos<0)return;
+      order2.splice(fromPos,1);
+      order2.splice(toPos,0,dragSrcIdx);
+      storeOrder=order2;
+      saveStoreOrder();
+      renderSL(f);
+      renderMain();
+      go();
+    });
+
     el.appendChild(b);
   });
 }
@@ -226,7 +284,9 @@ function renderPL(f){
 function renderMain(){
   const cont=document.getElementById('cont');cont.innerHTML='';
   const COLS=['Produkt','Materiál','Šarže','Číslo palety','Poznámka'];
-  D.forEach(function(s,si){
+  getStoreOrder().forEach(function(si){
+    const s=D[si];
+    if(!s||s._deleted)return;
     const p=parseSched(s.name);const n=p.n;const sched=p.s;
     const isB=s.header_type==='blue';
     const sec=document.createElement('div');
@@ -446,7 +506,8 @@ function xlPaste(e,si,pi,startCol){
 
 function go(){
   const sl=sTerm.toLowerCase();var vs=0,vp=0,vr=0;
-  document.querySelectorAll('.ssec').forEach(function(sec,si){
+  document.querySelectorAll('.ssec').forEach(function(sec){
+    var si=+sec.id.replace('sec','');
     if(aStore!==null&&aStore!==si){sec.classList.add('hidden');return;}
     const s=D[si];
     const snm=!sl||s.name.toLowerCase().indexOf(sl)>=0;
@@ -549,6 +610,31 @@ function todayStr(){
   return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
 }
 function newTabId(){return 'tab_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);}
+
+// ── Store order ──
+var storeOrder=[];  // pole store_idx v zobrazovaném pořadí
+
+function getStoreOrder(){
+  // Vrátí aktuální pořadí — doplní případné nové obchody na konec
+  var valid=storeOrder.filter(function(i){return D[i]&&!D[i]._deleted;});
+  D.forEach(function(_,i){if(!D[i]._deleted&&valid.indexOf(i)<0)valid.push(i);});
+  storeOrder=valid;
+  return storeOrder;
+}
+
+function saveStoreOrder(){
+  var payload=[{id:'__storeorder__',store_idx:0,prod_idx:null,col_idx:null,extra_key:'__storeorder__',value:JSON.stringify(storeOrder)}];
+  fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(payload)}).catch(function(){});
+}
+
+function loadStoreOrder(cb){
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.__storeorder__&select=value',{headers:sbH()})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(rows&&rows.length&&rows[0].value)storeOrder=JSON.parse(rows[0].value);
+    cb();
+  }).catch(function(){cb();});
+}
 
 // ── Save/load tab list ──
 function saveTabList(){
@@ -1235,8 +1321,10 @@ function addNewProduct(si){
 // ── INIT ──
 loadTabList(function(){
   activeTab=tabs[0].id;
-  renderSL();renderPL();renderTabs();
-  loadTabCells(activeTab);
+  loadStoreOrder(function(){
+    renderSL();renderPL();renderTabs();
+    loadTabCells(activeTab);
+  });
 });
 
 document.getElementById('tsearch').oninput=function(e){sTerm=e.target.value;go();renderSL(document.getElementById('sls').value);renderPL(document.getElementById('pls').value);};
