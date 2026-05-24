@@ -484,6 +484,23 @@ var TABLE='avomango_cells';
 function sbH(){
   return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
 }
+
+// Načítá VŠECHNY řádky z Supabase po dávkách (Supabase free plán vrací max 1000 najednou)
+function sbFetchAll(filter,maxRows){
+  maxRows=maxRows||20000;
+  var pageSize=1000;
+  var allRows=[];
+  function fetchPage(offset){
+    var url=SB_URL+'/rest/v1/'+TABLE+'?'+filter+'&select=*&limit='+pageSize+'&offset='+offset+'&order=id';
+    return fetch(url,{headers:sbH()}).then(function(r){return r.json();}).then(function(rows){
+      if(!Array.isArray(rows)||!rows.length)return allRows;
+      allRows=allRows.concat(rows);
+      if(rows.length<pageSize||allRows.length>=maxRows)return allRows;
+      return fetchPage(offset+pageSize);
+    });
+  }
+  return fetchPage(0);
+}
 function sbHU(){
   return Object.assign(sbH(),{'Prefer':'resolution=merge-duplicates'});
 }
@@ -659,8 +676,8 @@ function loadTabCells(tabId,cb){
   var cellPromise;
   if(tabId==='vzor'){
     cellPromise=Promise.all([
-      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();}),
-      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();})
+      sbFetchAll('extra_key=is.null'),
+      sbFetchAll('extra_key=eq.vzor')
     ]).then(function(res){
       var merged={};
       // null format (oldest, lowest priority)
@@ -672,7 +689,7 @@ function loadTabCells(tabId,cb){
       return Object.keys(merged).map(function(k){return merged[k];});
     });
   } else {
-    cellPromise=fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId)+'&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();});
+    cellPromise=sbFetchAll('extra_key=eq.'+encodeURIComponent(tabId));
   }
   cellPromise
   .then(function(rows){
@@ -686,9 +703,8 @@ function loadTabCells(tabId,cb){
       });
     }
     // load extra rows
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId+'__ex')+'&select=*&limit=2000',{headers:sbH()});
+    return sbFetchAll('extra_key=eq.'+encodeURIComponent(tabId+'__ex'));
   })
-  .then(function(r){return r.json();})
   .then(function(rows){
     var savedExtras={};
     if(Array.isArray(rows)){
@@ -1019,9 +1035,9 @@ document.getElementById('tab-add').onclick=function(){
     // 2) extra_key=vzor,  id=vzor_c_si_pi_ci
     // 3) extra_key=vzor,  id=vzor|si|pi|ci  (newest)
     return Promise.all([
-      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();}),
-      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();}),
-      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor__ex&select=*&limit=2000',{headers:sbH()}).then(function(r){return r.json();})
+      sbFetchAll('extra_key=is.null'),
+      sbFetchAll('extra_key=eq.vzor'),
+      sbFetchAll('extra_key=eq.vzor__ex')
     ]);
   })
   .then(function(res){
@@ -1096,8 +1112,7 @@ document.getElementById('tab-add').onclick=function(){
 
 
 document.getElementById('btn-debug').onclick=function(){
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?select=id,extra_key,store_idx,prod_idx,col_idx,value&limit=2000',{headers:sbH()})
-  .then(function(r){return r.json();})
+  sbFetchAll('extra_key=neq.__NEVER__',5000)
   .then(function(rows){
     // Group by extra_key
     var groups={};
