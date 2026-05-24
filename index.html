@@ -193,10 +193,15 @@ function renderSL(f){
     const cnt=s.products.filter(function(p){return p.is_product&&!p._deleted;}).length;
     const isB=s.header_type==='blue';
     const b=document.createElement('button');
-    b.className='sbtn '+(isB?'sbtn-b':'sbtn-y')+(aStore===i?' active':'');
+    b.className='sbtn '+(isB?'sbtn-b':'sbtn-y');
     b.dataset.i=i;
     b.innerHTML='<div class="sbtn-dot"></div><div class="sbtn-lbl" title="'+s.name+'">'+n+'</div><div class="sbtn-cnt">'+cnt+'</div>';
-    b.onclick=function(){aStore=aStore===i?null:i;aProd=null;go();renderSL(f);renderPL(document.getElementById('pls').value);};
+    b.onclick=function(){
+      document.querySelectorAll('#store-list .sbtn').forEach(function(btn){btn.classList.remove('active');});
+      b.classList.add('active');
+      var sec=document.getElementById('sec'+i);
+      if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
+    };
     el.appendChild(b);
   });
 }
@@ -399,6 +404,11 @@ function renderMain(){
     });
   });
   document.querySelectorAll('.ci').forEach(autoH);
+  // Re-observe sections for sidebar scroll indicator
+  if(typeof io!=='undefined'&&io){
+    io.disconnect();
+    document.querySelectorAll('.ssec').forEach(function(s){io.observe(s);});
+  }
 }
 
 function autoH(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
@@ -1228,7 +1238,7 @@ document.getElementById('pls').oninput=function(e){renderPL(e.target.value);};
 document.getElementById('fclear').onclick=function(){aStore=null;aProd=null;sTerm='';document.getElementById('tsearch').value='';renderSL();renderPL();go();};
 
 var io=new IntersectionObserver(function(en){en.forEach(function(e){
-  if(e.isIntersecting&&aStore===null){
+  if(e.isIntersecting){
     var i=+e.target.id.replace('sec','');
     document.querySelectorAll('.sbtn').forEach(function(b){b.classList.remove('active');});
     var b=document.querySelector('.sbtn[data-i="'+i+'"]');
