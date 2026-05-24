@@ -796,7 +796,10 @@ function addExtraRow(afterTr,si){
     extra.remove();
   };})(key,si,extra);
   tdX.appendChild(btnX);extra.appendChild(tdX);
-  afterTr.parentNode.insertBefore(extra,afterTr.nextSibling);
+  // Insert after all existing extra rows for this product (append, not prepend)
+  var refNode=afterTr.nextSibling;
+  while(refNode&&refNode.classList&&refNode.classList.contains('r-extra')){refNode=refNode.nextSibling;}
+  afterTr.parentNode.insertBefore(extra,refNode||null);
   extra.querySelector('.ci').focus();
 }
 
@@ -805,7 +808,7 @@ function restoreExtras(){
   Object.keys(window._savedExtras).forEach(function(si){
     var extras=window._savedExtras[si];
     var tb=document.getElementById('tb'+si);if(!tb)return;
-    Object.keys(extras).forEach(function(key){
+    Object.keys(extras).sort().forEach(function(key){
       var vals=extras[key];
       if(!D[+si]._extra)D[+si]._extra={};
       D[+si]._extra[key]=vals;
