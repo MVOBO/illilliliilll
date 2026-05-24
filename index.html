@@ -148,7 +148,7 @@ tr.hidden{display:none!important}
   <div class="tstats">Obchody: <b id="ss">0</b>&nbsp; Produkty: <b id="sp">0</b>&nbsp; Řádky: <b id="sr2">0</b></div>
   <div id="io-btns">
     <button id="btn-new-store" title="Přidat nový obchod">＋ Nový obchod</button>
-    <button id="btn-load" onclick="location.reload()" style="height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;background:#fff;border:1px solid var(--g300);color:var(--g700);font-weight:500" title="Aktualizovat stránku">🔄 Aktualizovat</button>
+    <button id="btn-load" style="height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;background:#fff;border:1px solid var(--g300);color:var(--g700);font-weight:500" title="Aktualizovat stránku">🔄 Aktualizovat</button>
     <span id="save-status"></span>
     <button id="btn-debug" style="height:28px;padding:0 10px;border-radius:5px;font-family:var(--font);font-size:10pt;cursor:pointer;background:#f3e8ff;border:1px solid #c084fc;color:#7e22ce;font-weight:500" title="Zobraz co je v DB">🔍 DB</button>
   </div>
@@ -943,6 +943,11 @@ function addNewStore(){
   go();
 }
 document.getElementById('btn-new-store').onclick=addNewStore;
+document.getElementById('btn-load').onclick=function(){
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
+  showStatus('⏳ Ukládám…','orange');
+  saveCurrentTab().finally(function(){location.reload();});
+};
 
 // ══════════════════════════════════════════════════════
 // RENDER TABS
@@ -1056,9 +1061,6 @@ document.getElementById('tab-add').onclick=function(){
     var newRows=[];
     Object.keys(merged).forEach(function(k){
       var row=merged[k];
-      // Přeskočit buňky, které jsou v paměti prázdné (uživatel je smazal, ale Supabase ještě nemá aktuální data)
-      var memPr=D[row.store_idx]&&D[row.store_idx].products[row.prod_idx];
-      if(memPr){var memCd=memPr.cells&&memPr.cells[String(row.col_idx)];if(memCd&&memCd.val==='')return;}
       newRows.push({
         id:makeId(newId,row.store_idx,row.prod_idx,row.col_idx),
         store_idx:row.store_idx,prod_idx:row.prod_idx,col_idx:row.col_idx,
@@ -1078,25 +1080,6 @@ document.getElementById('tab-add').onclick=function(){
         extra_key:newId+'__ex',value:row.value
       });
     });
-    // Extra rows — also from memory (in case Supabase hasn't saved them yet)
-    D.forEach(function(s,si){
-      if(!s._extra)return;
-      Object.keys(s._extra).forEach(function(key){
-        var vals=s._extra[key];
-        if(vals._pi!==undefined){
-          var id=makeExId(newId,si,key,0);
-          if(!exIds[id]){exIds[id]=true;newRows.push({id:id,store_idx:si,prod_idx:null,col_idx:0,extra_key:newId+'__ex',value:String(vals._pi)});}
-        }
-        for(var ci=1;ci<=5;ci++){
-          if(!vals[String(ci)])continue;
-          var id=makeExId(newId,si,key,ci);
-          if(exIds[id])continue;
-          exIds[id]=true;
-          newRows.push({id:id,store_idx:si,prod_idx:null,col_idx:ci,extra_key:newId+'__ex',value:vals[String(ci)]});
-        }
-      });
-    });
-
     if(!newRows.length)return Promise.resolve();
     return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(newRows)});
   })
