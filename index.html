@@ -599,13 +599,28 @@ function collectTabData(tabId){
 }
 
 // ── Save current tab cells to Supabase ──
-function saveCurrentTab(){
-  var tabId=activeTab;
+// Full replace: delete all regular cells for this tab, then insert non-empty ones.
+// This ensures cleared/deleted cells never linger in Supabase.
+function saveCurrentTab(tabId){
+  tabId=tabId||activeTab;
   var rows=collectTabData(tabId);
-  if(!rows.length)return Promise.resolve();
-  return fetch(SB_URL+'/rest/v1/'+TABLE,{
-    method:'POST',headers:sbHU(),body:JSON.stringify(rows)
-  }).then(function(r){if(!r.ok)throw new Error(r.status);});
+
+  // Delete all cells AND extra rows for this tab
+  var deleteOps=[
+    fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId),{method:'DELETE',headers:sbH()}).catch(function(){}),
+    fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId+'__ex'),{method:'DELETE',headers:sbH()}).catch(function(){})
+  ];
+  if(tabId==='vzor'){
+    // Also delete legacy null-format vzor rows (saved before tab system)
+    deleteOps.push(
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&prod_idx=not.is.null',{method:'DELETE',headers:sbH()}).catch(function(){})
+    );
+  }
+
+  return Promise.all(deleteOps).then(function(){
+    if(!rows.length)return Promise.resolve();
+    return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)});
+  }).then(function(r){if(r&&!r.ok)throw new Error(r.status);});
 }
 
 // ── Delete a single cell from Supabase ──
@@ -707,16 +722,13 @@ function loadTabCells(tabId,cb){
 function switchTab(id){
   if(activeTab===id)return;
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  // Collect data for current tab BEFORE switching activeTab
-  var prevRows=collectTabData(activeTab);
-  // Switch immediately so renderTabs shows correct active state
+  var prevId=activeTab;
+  // Switch visually immediately
   activeTab=id;
   renderTabs();
-  // Save previous tab async, then load new tab
-  var saveP=prevRows.length?
-    fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(prevRows)}).then(function(r){if(!r.ok)throw new Error(r.status);}):
-    Promise.resolve();
-  saveP.finally(function(){loadTabCells(id);});
+  showStatus('⏳ Ukládám…','orange');
+  // Full replace save of previous tab (delete+insert), then load new tab
+  saveCurrentTab(prevId).finally(function(){loadTabCells(id);});
 }
 
 function getTabName(id){
