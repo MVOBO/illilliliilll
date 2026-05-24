@@ -67,17 +67,20 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 #fbar.vis{display:flex}
 #fclear{margin-left:auto;background:none;border:1px solid var(--blue);border-radius:4px;padding:2px 9px;font-size:10px;color:var(--blue);cursor:pointer;font-family:var(--font)}
 #fclear:hover{background:var(--blue);color:#fff}
-.ssec{background:#fff;margin:10px 10px 0;border-radius:6px;border:1px solid var(--g200);overflow:hidden;scroll-margin-top:10px}
+.ssec{background:#fff;margin:10px auto 0;border-radius:6px;border:1px solid var(--g200);overflow:hidden;scroll-margin-top:10px;width:fit-content;min-width:min(100% - 20px, 700px)}
 .ssec:last-child{margin-bottom:10px}
 .ssec-hdr-y,.ssec-hdr-b{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--yl);border-bottom:2px solid var(--ym);flex-wrap:wrap}
 .ssec-name-y,.ssec-name-b{font-size:20pt;font-weight:bold;color:#000;font-family:var(--font);line-height:1.1}
 .ssec-badge{font-size:10pt;padding:2px 8px;border-radius:20px;white-space:nowrap;font-family:var(--font);align-self:center}
 .badge-y,.badge-b{background:rgba(245,196,0,.2);border:1px solid var(--ym);color:#7a5f00}
-.ptbl{width:100%;border-collapse:collapse}
+.ptbl{width:auto;border-collapse:collapse}
 .ptbl thead tr{background:var(--g50)}
 .ptbl th{padding:4px 10px;text-align:left;font-size:9px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--g200);white-space:nowrap}
 .ptbl th:first-child{width:220px;min-width:160px}
-.ptbl th:nth-child(n+2){width:100px;min-width:70px}
+.ptbl th:nth-child(2){width:240px;min-width:240px} /* Materiál */
+.ptbl th:nth-child(3){width:110px;min-width:110px} /* Šarže */
+.ptbl th:nth-child(4){width:90px;min-width:90px}   /* Číslo palety */
+.ptbl th:nth-child(5){width:320px;min-width:320px} /* Poznámka */
 .ptbl td:nth-child(n+2){background:#fafff8;outline:1px solid #000;outline-offset:-1px}
 .ptbl tr:hover td:nth-child(n+2){background:#f0fdf4}
 .ptbl td:nth-child(n+2) .ci{background:#fafff8}
@@ -86,16 +89,24 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 .ptbl td{padding:0;border-bottom:1px solid var(--g100);vertical-align:middle}
 .ptbl tr:last-child td{border-bottom:none}
 .ptbl tr:hover td{background:#fffcf0}
+.r-product td{background:#f0f0f0!important}
+.r-product td:nth-child(n+2){background:#f0f0f0!important;outline:none}
+.r-product .ci{background:#f0f0f0!important}
+.r-product:hover td{background:#e5e5e5!important}
+.r-product:hover td:nth-child(n+2){background:#e5e5e5!important}
+.r-product .ci:focus{background:#fffbeb!important;box-shadow:inset 0 0 0 2px var(--yellow)}
 .r-red td{background:var(--red-l)}
 .r-subsection td{background:var(--g50)}
 .r-extra td:first-child{background:transparent}
-.r-extra .ci{font-size:11pt;font-weight:bold;color:#ff0000;text-align:right}
+.r-extra .ci{font-size:11pt;font-weight:normal;color:#000;text-align:left}
+.r-extra td:first-child .ci{color:#ff0000;font-weight:bold}
 .r-extra .ci::placeholder{color:var(--g300);font-style:italic;font-weight:normal;text-align:left}
 .ptbl th:last-child{width:66px;padding:0}
 .ptbl td:last-child{width:66px;padding:0;border-bottom:1px solid var(--g100);background:transparent!important}
 .ci{width:100%;padding:4px 10px;border:none;outline:none;background:transparent;min-height:26px;resize:none;overflow:hidden;line-height:1.4;display:block;font-family:var(--font)}
 .ci:focus{background:#fffbeb;box-shadow:inset 0 0 0 2px var(--yellow);border-radius:2px}
 .r-product .ci{font-size:11pt;font-weight:bold;color:#000}
+.r-product td:nth-child(2) .ci{color:#ff0000}
 .r-subsection .ci{font-size:13pt;font-weight:bold;color:#000}
 .r-red .ci{font-size:11pt;font-weight:bold;color:#ff0000}
 .r-note .ci{font-size:11pt;font-weight:normal;color:#000}
@@ -110,10 +121,19 @@ tr.hidden{display:none!important}
 #tab-bar{display:flex;align-items:center;background:#fff;border-bottom:2px solid var(--ym);padding:0 8px;gap:2px;flex-shrink:0;overflow-x:auto;min-height:36px}
 #tab-bar::-webkit-scrollbar{height:3px}
 #tab-bar::-webkit-scrollbar-thumb{background:var(--g200)}
-.tab{display:flex;align-items:center;gap:5px;padding:6px 14px;border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;cursor:pointer;font-family:var(--font);font-size:11pt;color:var(--g500);background:var(--g100);white-space:nowrap;position:relative;top:2px;user-select:none}
-.tab:hover{background:var(--yl);color:var(--g800)}
-.tab.active{background:#fff;border-color:var(--ym);border-bottom-color:#fff;color:#000;font-weight:700;box-shadow:0 -2px 0 var(--yellow) inset}
-.tab-name{outline:none;background:transparent;border:none;font-family:var(--font);font-size:11pt;font-weight:inherit;color:inherit;cursor:default;min-width:40px;max-width:140px;pointer-events:none}
+.tab{display:flex;align-items:center;gap:5px;padding:6px 16px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;font-family:var(--font);font-size:11pt;color:var(--g400);background:var(--g100);white-space:nowrap;position:relative;top:2px;user-select:none;transition:background .15s,color .15s}
+.tab:hover{background:var(--yl);color:var(--g700)}
+/* VZOR tab – neaktivní: světle žlutá */
+.tab.tab-vzor{background:#fff8d6;color:#92650a;border-color:#ffe44d;font-weight:600}
+.tab.tab-vzor:hover{background:#ffe44d}
+/* Denní listy – aktivní: modrá (musí být před VZOR active) */
+.tab.active{background:#1e40af!important;border-color:#1e3a8a!important;border-bottom-color:#1e40af!important;color:#fff!important;font-weight:700!important;font-size:12pt!important;box-shadow:0 -3px 0 #1e3a8a inset!important}
+.tab.active .tab-close{color:rgba(255,255,255,.6)!important}
+.tab.active .tab-close:hover{background:rgba(255,255,255,.2)!important;color:#fff!important}
+/* VZOR tab – aktivní: zlatá (přebíjí modrou výše) */
+.tab.tab-vzor.active{background:var(--yellow)!important;border-color:#d4a800!important;border-bottom-color:var(--yellow)!important;color:#000!important;box-shadow:0 -3px 0 #b38600 inset!important}
+.tab.tab-vzor.active .tab-close{color:#7a5f00!important}
+.tab-name{outline:none;background:transparent;border:none;font-family:var(--font);font-size:inherit;font-weight:inherit;color:inherit;cursor:default;min-width:40px;max-width:140px;pointer-events:none}
 .tab.active .tab-name{cursor:text;pointer-events:auto}
 .tab-close{font-size:12px;color:var(--g400);cursor:pointer;padding:0 2px;border-radius:2px;line-height:1;background:none;border:none}
 .tab-close:hover{background:#fee2e2;color:#dc2626}
@@ -131,6 +151,7 @@ tr.hidden{display:none!important}
     <button id="btn-save" title="Uložit do Supabase">💾 Uložit</button>
     <button id="btn-load" title="Načíst aktuální data ze Supabase">🔄 Aktualizovat</button>
     <span id="save-status"></span>
+    <button id="btn-debug" style="height:28px;padding:0 10px;border-radius:5px;font-family:var(--font);font-size:10pt;cursor:pointer;background:#f3e8ff;border:1px solid #c084fc;color:#7e22ce;font-weight:500" title="Zobraz co je v DB">🔍 DB</button>
   </div>
 </div>
 
@@ -268,55 +289,67 @@ function renderMain(){
       tr.dataset.si=si;tr.dataset.pi=pi;tr.dataset.name=pr.name;tr.dataset.ip=pr.is_product?1:0;
       tr.className='r-'+(pr.row_type||'product');
       for(var ci=1;ci<=5;ci++){
+        if(pr.is_product&&(ci===3||ci===4))continue;
         const td=document.createElement('td');
+        if(pr.is_product&&ci===2)td.colSpan=3;
         const ta=document.createElement('textarea');
         ta.className='ci';
-        const cd=pr.cells&&pr.cells[String(ci)];
-        ta.value=cd?cd.val:(ci===1?pr.name:'');
         ta.rows=1;ta.spellcheck=false;
-        if(cd&&cd.red)ta.classList.add('cell-red');
-        (function(ta,pr,ci){
-          var prevVal='';
-          ta.onfocus=function(){prevVal=ta.value;};
-          ta.onblur=function(){
-            var newVal=ta.value;
-            if(newVal!==prevVal){
-              var oldVal=prevVal;
-              pushUndo(function(){
-                ta.value=oldVal;autoH(ta);
-                if(!pr.cells)pr.cells={};
-                pr.cells[String(ci)]={val:oldVal,red:false};
-                scheduleSave();
-              });
-            }
-          };
-          ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};scheduleSave();};
-        })(ta,pr,ci);
-        (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
-        // For first column (product name), wrap in flex container with delete button
-        if(ci===1&&pr.is_product){
-          td.style.cssText='padding:0;position:relative;';
-          var nameWrap=document.createElement('div');
-          nameWrap.style.cssText='display:flex;align-items:center;gap:2px;width:100%;';
-          ta.style.cssText='flex:1;min-width:0;';
-          var btnDelInline=document.createElement('button');
-          btnDelInline.textContent='✕';btnDelInline.title='Odebrat produkt';
-          btnDelInline.style.cssText='flex-shrink:0;width:16px;height:16px;border:none;border-radius:3px;background:transparent;color:var(--g300);font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font);margin-right:3px;transition:color .15s,background .15s';
-          btnDelInline.onmouseover=function(){this.style.background='#fee2e2';this.style.color='#dc2626';};
-          btnDelInline.onmouseout=function(){this.style.background='transparent';this.style.color='var(--g300)';};
-          (function(tr,si,pi){btnDelInline.onclick=function(e){
-            e.stopPropagation();
-            if(!confirm('Odebrat produkt "'+D[si].products[pi].name+'"?'))return;
-            for(var ci=1;ci<=5;ci++) deleteFromSB(makeId(activeTab,si,pi,ci));
-            D[si].products[pi]._deleted=true;
-            tr.remove();
-            renderSL();renderPL(document.getElementById('pls').value);
-          };})(tr,si,pi);
-          nameWrap.appendChild(ta);
-          nameWrap.appendChild(btnDelInline);
-          td.appendChild(nameWrap);
-        } else {
+        if(pr.is_product&&ci===2){
+          // Merged cell: show cols 2,3,4 tab-separated; paste distributes to 2,3,4
+          var v2=(pr.cells&&pr.cells['2']&&pr.cells['2'].val)||'';
+          var v3=(pr.cells&&pr.cells['3']&&pr.cells['3'].val)||'';
+          var v4=(pr.cells&&pr.cells['4']&&pr.cells['4'].val)||'';
+          ta.value=[v2,v3,v4].filter(Boolean).join('\t');
+          (function(ta,pr){
+            ta.onpaste=function(e){
+              var txt=(e.clipboardData||window.clipboardData).getData('text');
+              e.preventDefault();
+              var cols=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n')[0].split('\t');
+              ['2','3','4'].forEach(function(ckey,idx){if(!pr.cells)pr.cells={};pr.cells[ckey]={val:cols[idx]||'',red:false};});
+              var v2=(pr.cells['2']&&pr.cells['2'].val)||'';
+              var v3=(pr.cells['3']&&pr.cells['3'].val)||'';
+              var v4=(pr.cells['4']&&pr.cells['4'].val)||'';
+              ta.value=[v2,v3,v4].filter(Boolean).join('\t');
+              autoH(ta);scheduleSave();
+            };
+            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells['2']={val:ta.value,red:false};pr.cells['3']={val:'',red:false};pr.cells['4']={val:'',red:false};scheduleSave();};
+          })(ta,pr);
           td.appendChild(ta);
+        } else {
+          const cd=pr.cells&&pr.cells[String(ci)];
+          ta.value=cd?cd.val:(ci===1?pr.name:'');
+          if(cd&&cd.red)ta.classList.add('cell-red');
+          (function(ta,pr,ci){
+            var prevVal='';
+            ta.onfocus=function(){prevVal=ta.value;};
+            ta.onblur=function(){var newVal=ta.value;if(newVal!==prevVal){var oldVal=prevVal;pushUndo(function(){ta.value=oldVal;autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:oldVal,red:false};scheduleSave();});}};
+            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};scheduleSave();};
+          })(ta,pr,ci);
+          (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
+          if(ci===1&&pr.is_product){
+            td.style.cssText='padding:0;position:relative;';
+            var nameWrap=document.createElement('div');
+            nameWrap.style.cssText='display:flex;align-items:center;gap:2px;width:100%;';
+            ta.style.cssText='flex:1;min-width:0;';
+            var btnDelInline=document.createElement('button');
+            btnDelInline.textContent='✕';btnDelInline.title='Odebrat produkt';
+            btnDelInline.style.cssText='flex-shrink:0;width:16px;height:16px;border:none;border-radius:3px;background:transparent;color:var(--g300);font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font);margin-right:3px;transition:color .15s,background .15s';
+            btnDelInline.onmouseover=function(){this.style.background='#fee2e2';this.style.color='#dc2626';};
+            btnDelInline.onmouseout=function(){this.style.background='transparent';this.style.color='var(--g300)';};
+            (function(tr,si,pi){btnDelInline.onclick=function(e){
+              e.stopPropagation();
+              if(!confirm('Odebrat produkt "'+D[si].products[pi].name+'"?'))return;
+              for(var ci=1;ci<=5;ci++) deleteFromSB(makeId(activeTab,si,pi,ci));
+              D[si].products[pi]._deleted=true;
+              tr.remove();
+              renderSL();renderPL(document.getElementById('pls').value);
+            };})(tr,si,pi);
+            nameWrap.appendChild(ta);nameWrap.appendChild(btnDelInline);
+            td.appendChild(nameWrap);
+          } else {
+            td.appendChild(ta);
+          }
         }
         tr.appendChild(td);
       }
@@ -534,8 +567,9 @@ function collectTabData(tabId){
     if(s._deleted)return;
     s.products.forEach(function(pr,pi){
       if(pr._deleted)return;
-      // cols 2-5 are editable; col 1 is product name (structure, not per-tab)
-      for(var ci=2;ci<=5;ci++){
+      // col 1 saved only for vzor (product name can be edited there); cols 2-5 for all tabs
+      var startCol=(tabId==='vzor')?1:2;
+      for(var ci=startCol;ci<=5;ci++){
         var cd=pr.cells&&pr.cells[String(ci)];
         if(cd&&cd.val){
           rows.push({
@@ -550,15 +584,14 @@ function collectTabData(tabId){
     if(s._extra){
       Object.keys(s._extra).forEach(function(key){
         var vals=s._extra[key];
-        Object.keys(vals).forEach(function(ci){
-          if(vals[ci]){
-            rows.push({
-              id:makeExId(tabId,si,key,ci),
-              store_idx:si,prod_idx:null,col_idx:+ci,
-              extra_key:tabId+'__ex',value:vals[ci]
-            });
+        if(vals._pi!==undefined){
+          rows.push({id:makeExId(tabId,si,key,0),store_idx:si,prod_idx:null,col_idx:0,extra_key:tabId+'__ex',value:String(vals._pi)});
+        }
+        for(var ci=1;ci<=5;ci++){
+          if(vals[String(ci)]){
+            rows.push({id:makeExId(tabId,si,key,ci),store_idx:si,prod_idx:null,col_idx:ci,extra_key:tabId+'__ex',value:vals[String(ci)]});
           }
-        });
+        }
       });
     }
   });
@@ -596,11 +629,28 @@ function clearTabCells(){
 
 // ── Load tab cells from Supabase and render ──
 function loadTabCells(tabId,cb){
-  showStatus('⟳ Načítám…','orange');
+  showStatus('⏳ Načítám…','orange');
   clearTabCells();
-  // load editable cells
-  fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId)+'&select=*&limit=5000',{headers:sbH()})
-  .then(function(r){return r.json();})
+  // For vzor: also load old-format rows (extra_key=null) so legacy data isn't lost
+  var cellPromise;
+  if(tabId==='vzor'){
+    cellPromise=Promise.all([
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();}),
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();})
+    ]).then(function(res){
+      var merged={};
+      // null format (oldest, lowest priority)
+      (res[0]||[]).forEach(function(row){if(row.prod_idx!==null){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
+      // vzor_c_ format (medium priority)
+      (res[1]||[]).forEach(function(row){if(row.prod_idx!==null&&row.id.indexOf('|')<0){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
+      // vzor|si|pi|ci format (highest priority)
+      (res[1]||[]).forEach(function(row){if(row.prod_idx!==null&&row.id.indexOf('|')>=0){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
+      return Object.keys(merged).map(function(k){return merged[k];});
+    });
+  } else {
+    cellPromise=fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId)+'&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();});
+  }
+  cellPromise
   .then(function(rows){
     if(Array.isArray(rows)){
       rows.forEach(function(row){
@@ -619,23 +669,27 @@ function loadTabCells(tabId,cb){
     var savedExtras={};
     if(Array.isArray(rows)){
       rows.forEach(function(row){
-        // id format: tabId|ex|si|key|ci
         var parts=row.id.split('|');
         var si=row.store_idx;
-        // key is parts[3]
         var key=parts[3];
         if(!key)return;
         if(!D[si])return;
         if(!D[si]._extra)D[si]._extra={};
         if(!D[si]._extra[key])D[si]._extra[key]={};
-        D[si]._extra[key][row.col_idx]=row.value;
-        if(!savedExtras[si])savedExtras[si]={};
-        if(!savedExtras[si][key])savedExtras[si][key]={};
-        savedExtras[si][key][row.col_idx]=row.value;
+        if(row.col_idx===0){
+          D[si]._extra[key]._pi=+row.value;
+          if(!savedExtras[si])savedExtras[si]={};
+          if(!savedExtras[si][key])savedExtras[si][key]={};
+          savedExtras[si][key]._pi=+row.value;
+        } else {
+          D[si]._extra[key][row.col_idx]=row.value;
+          if(!savedExtras[si])savedExtras[si]={};
+          if(!savedExtras[si][key])savedExtras[si][key]={};
+          savedExtras[si][key][row.col_idx]=row.value;
+        }
       });
     }
     window._savedExtras=savedExtras;
-    // Seed product names into cells['1']
     D.forEach(function(s){
       s.products.forEach(function(pr){
         if(!pr.cells)pr.cells={};
@@ -652,12 +706,17 @@ function loadTabCells(tabId,cb){
 // ── Switch tab ──
 function switchTab(id){
   if(activeTab===id)return;
-  // Flush pending save for current tab first
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  saveCurrentTab().finally(function(){
-    activeTab=id;
-    loadTabCells(id);
-  });
+  // Collect data for current tab BEFORE switching activeTab
+  var prevRows=collectTabData(activeTab);
+  // Switch immediately so renderTabs shows correct active state
+  activeTab=id;
+  renderTabs();
+  // Save previous tab async, then load new tab
+  var saveP=prevRows.length?
+    fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(prevRows)}).then(function(r){if(!r.ok)throw new Error(r.status);}):
+    Promise.resolve();
+  saveP.finally(function(){loadTabCells(id);});
 }
 
 function getTabName(id){
@@ -672,7 +731,13 @@ function addExtraRow(afterTr,si){
   extra.className='r-extra';
   extra.dataset.si=si;extra.dataset.ip=0;extra.dataset.name='';
   var key='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  var _pi=afterTr.dataset.pi!==undefined?+afterTr.dataset.pi:null;
   extra.dataset.key=key;
+  if(_pi!==null)extra.dataset.pi=_pi;
+  if(!D[si]._extra)D[si]._extra={};
+  D[si]._extra[key]={'1':'_row'};
+  if(_pi!==null)D[si]._extra[key]._pi=_pi;
+  scheduleSave();
   for(var ci=1;ci<=5;ci++){
     var td=document.createElement('td');
     if(ci===1)td.style.cssText='padding:0;border-bottom:1px solid var(--g100);';
@@ -680,7 +745,7 @@ function addExtraRow(afterTr,si){
     var ta=document.createElement('textarea');
     ta.className='ci';ta.rows=1;ta.spellcheck=false;
     ta.placeholder=ci===1?'volný řádek…':'';
-    (function(ta,ci,key,si){
+    (function(ta,ci,key,si,extra){
       ta.oninput=function(){
         autoH(ta);
         if(!D[si]._extra)D[si]._extra={};
@@ -688,7 +753,24 @@ function addExtraRow(afterTr,si){
         D[si]._extra[key][ci]=ta.value;
         scheduleSave();
       };
-    })(ta,ci,key,si);
+      ta.onpaste=function(e){
+        var txt=(e.clipboardData||window.clipboardData).getData('text');
+        e.preventDefault();
+        var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
+        var cols=raw.split('\n')[0].split('\t');
+        var inputs=extra.querySelectorAll('.ci');
+        cols.forEach(function(v,idx){
+          var iIdx=ci-1+idx;
+          if(inputs[iIdx]){
+            inputs[iIdx].value=v.trim();autoH(inputs[iIdx]);
+            if(!D[si]._extra)D[si]._extra={};
+            if(!D[si]._extra[key])D[si]._extra[key]={};
+            D[si]._extra[key][iIdx+1]=v.trim();
+            scheduleSave();
+          }
+        });
+      };
+    })(ta,ci,key,si,extra);
     td.appendChild(ta);extra.appendChild(td);
   }
   var tdX=document.createElement('td');
@@ -699,7 +781,7 @@ function addExtraRow(afterTr,si){
   btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
   btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
   (function(key,si,extra){btnX.onclick=function(){
-    for(var ci=1;ci<=5;ci++) deleteFromSB(makeExId(activeTab,si,key,ci));
+    for(var ci=0;ci<=5;ci++) deleteFromSB(makeExId(activeTab,si,key,ci));
     if(D[si]._extra)delete D[si]._extra[key];
     extra.remove();
   };})(key,si,extra);
@@ -725,10 +807,21 @@ function restoreExtras(){
         else td.style.cssText='padding:0;border-bottom:1px solid var(--g100);background:#fafff8';
         var ta=document.createElement('textarea');
         ta.className='ci';ta.rows=1;ta.spellcheck=false;
-        ta.value=vals[ci]||'';
-        (function(ta,ci,key,si){
+        ta.value=(vals[ci]&&vals[ci]!=='_row')?vals[ci]:'';
+        (function(ta,ci,key,si,extra){
           ta.oninput=function(){autoH(ta);if(!D[si]._extra)D[si]._extra={};if(!D[si]._extra[key])D[si]._extra[key]={};D[si]._extra[key][ci]=ta.value;scheduleSave();};
-        })(ta,ci,key,+si);
+          ta.onpaste=function(e){
+            var txt=(e.clipboardData||window.clipboardData).getData('text');
+            e.preventDefault();
+            var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
+            var cols=raw.split('\n')[0].split('\t');
+            var inputs=extra.querySelectorAll('.ci');
+            cols.forEach(function(v,idx){
+              var iIdx=ci-1+idx;
+              if(inputs[iIdx]){inputs[iIdx].value=v.trim();autoH(inputs[iIdx]);if(!D[si]._extra)D[si]._extra={};if(!D[si]._extra[key])D[si]._extra[key]={};D[si]._extra[key][iIdx+1]=v.trim();scheduleSave();}
+            });
+          };
+        })(ta,ci,key,+si,extra);
         td.appendChild(ta);extra.appendChild(td);
       }
       var tdX=document.createElement('td');
@@ -739,11 +832,19 @@ function restoreExtras(){
       btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
       btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
       (function(key,si,extra){btnX.onclick=function(){
-        for(var ci=1;ci<=5;ci++) deleteFromSB(makeExId(activeTab,si,key,ci));
+        for(var ci=0;ci<=5;ci++) deleteFromSB(makeExId(activeTab,si,key,ci));
         if(D[si]._extra)delete D[si]._extra[key];extra.remove();
       };})(key,+si,extra);
       tdX.appendChild(btnX);extra.appendChild(tdX);
-      tb.appendChild(extra);
+      var pi=vals._pi;
+      if(pi!==undefined){
+        var productTr=tb.querySelector('tr[data-pi="'+pi+'"]');
+        if(productTr){
+          var ref=productTr.nextSibling;
+          while(ref&&ref.classList&&ref.classList.contains('r-extra')){ref=ref.nextSibling;}
+          tb.insertBefore(extra,ref||null);
+        } else { tb.appendChild(extra); }
+      } else { tb.appendChild(extra); }
       extra.querySelectorAll('.ci').forEach(autoH);
     });
   });
@@ -828,12 +929,12 @@ function renderTabs(){
   var addBtn=document.getElementById('tab-add');
   tabs.forEach(function(t){
     var tab=document.createElement('div');
-    tab.className='tab'+(activeTab===t.id?' active':'');
+    tab.className='tab'+(t.id==='vzor'?' tab-vzor':'')+(activeTab===t.id?' active':'');
     tab.dataset.id=t.id;
     var nameEl=document.createElement('input');
     nameEl.type='text';nameEl.className='tab-name';nameEl.value=t.name;
     nameEl.readOnly=true;
-    tab.onclick=function(e){if(activeTab!==t.id){switchTab(t.id);renderTabs();}};
+    tab.onclick=function(e){if(activeTab!==t.id){switchTab(t.id);}};
     nameEl.ondblclick=function(e){if(activeTab===t.id){e.stopPropagation();this.readOnly=false;this.focus();this.select();}};
     nameEl.onblur=function(){this.readOnly=true;t.name=this.value.trim()||t.name;this.value=t.name;saveTabList();};
     nameEl.onkeydown=function(e){if(e.key==='Enter'){e.stopPropagation();this.blur();}e.stopPropagation();};
@@ -880,42 +981,95 @@ document.getElementById('tab-add').onclick=function(){
   var existing=tabs.filter(function(t){return t.name.startsWith(name);}).length;
   if(existing>0)name=name+' ('+( existing+1)+')';
 
-  showStatus('⟳ Kopíruji VZOR…','orange');
-
-  // First save current tab
+  showStatus('\u23f3 Kop\u00edruji VZOR\u2026','orange');
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  saveCurrentTab()
-  .then(function(){
-    // Load VZOR cells (extra_key=vzor)
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbH()});
+
+  saveCurrentTab().then(function(){
+    // Load ALL vzor data from Supabase — all 3 legacy formats:
+    // 1) extra_key=null,  id=c_si_pi_ci
+    // 2) extra_key=vzor,  id=vzor_c_si_pi_ci
+    // 3) extra_key=vzor,  id=vzor|si|pi|ci  (newest)
+    return Promise.all([
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();}),
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor&select=*&limit=5000',{headers:sbH()}).then(function(r){return r.json();}),
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor__ex&select=*&limit=2000',{headers:sbH()}).then(function(r){return r.json();})
+    ]);
   })
-  .then(function(r){return r.json();})
-  .then(function(vzorCells){
-    return fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.vzor__ex&select=*&limit=2000',{headers:sbH()})
-    .then(function(r){return r.json();})
-    .then(function(vzorEx){return {cells:vzorCells||[],extras:vzorEx||[]};});
-  })
-  .then(function(vzor){
+  .then(function(res){
+    var nullRows=res[0]||[];
+    var vzorRows=res[1]||[];
+    var vzorEx=res[2]||[];
+
+    // Merge: null (oldest) < vzor_c_ format < vzor| format (newest wins)
+    // Key: si_pi_ci
+    var merged={};
+
+    // 1. old null format (lowest priority)
+    nullRows.forEach(function(row){
+      if(row.prod_idx===null||row.col_idx<2)return;
+      var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;
+      if(!merged[k])merged[k]=row;
+    });
+
+    // 2+3. vzor rows — newer pipe-format id takes priority over vzor_c_ format
+    // First pass: vzor_c_ format
+    vzorRows.forEach(function(row){
+      if(row.prod_idx===null||row.col_idx<2)return;
+      if(row.id.indexOf('|')<0){ // vzor_c_si_pi_ci format
+        var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;
+        merged[k]=row;
+      }
+    });
+    // Second pass: pipe format (highest priority)
+    vzorRows.forEach(function(row){
+      if(row.prod_idx===null||row.col_idx<2)return;
+      if(row.id.indexOf('|')>=0){ // vzor|si|pi|ci format
+        var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;
+        merged[k]=row;
+      }
+    });
+
     var newRows=[];
-    vzor.cells.forEach(function(row){
-      if(row.prod_idx===null)return;
+    Object.keys(merged).forEach(function(k){
+      var row=merged[k];
       newRows.push({
         id:makeId(newId,row.store_idx,row.prod_idx,row.col_idx),
         store_idx:row.store_idx,prod_idx:row.prod_idx,col_idx:row.col_idx,
         extra_key:newId,value:row.value
       });
     });
-    vzor.extras.forEach(function(row){
-      // parse key from id: vzor|ex|si|key|ci
-      var parts=row.id.split('|');
-      var key=parts[3];
-      if(!key)return;
+
+    // Extra rows (free rows) — from Supabase
+    var exIds={};
+    vzorEx.forEach(function(row){
+      var key=row.id.split('|')[3];if(!key)return;
+      var id=makeExId(newId,row.store_idx,key,row.col_idx);
+      exIds[id]=true;
       newRows.push({
-        id:makeExId(newId,row.store_idx,key,row.col_idx),
+        id:id,
         store_idx:row.store_idx,prod_idx:null,col_idx:row.col_idx,
         extra_key:newId+'__ex',value:row.value
       });
     });
+    // Extra rows — also from memory (in case Supabase hasn't saved them yet)
+    D.forEach(function(s,si){
+      if(!s._extra)return;
+      Object.keys(s._extra).forEach(function(key){
+        var vals=s._extra[key];
+        if(vals._pi!==undefined){
+          var id=makeExId(newId,si,key,0);
+          if(!exIds[id]){exIds[id]=true;newRows.push({id:id,store_idx:si,prod_idx:null,col_idx:0,extra_key:newId+'__ex',value:String(vals._pi)});}
+        }
+        for(var ci=1;ci<=5;ci++){
+          if(!vals[String(ci)])continue;
+          var id=makeExId(newId,si,key,ci);
+          if(exIds[id])continue;
+          exIds[id]=true;
+          newRows.push({id:id,store_idx:si,prod_idx:null,col_idx:ci,extra_key:newId+'__ex',value:vals[String(ci)]});
+        }
+      });
+    });
+
     if(!newRows.length)return Promise.resolve();
     return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(newRows)});
   })
@@ -926,8 +1080,9 @@ document.getElementById('tab-add').onclick=function(){
     renderTabs();
     loadTabCells(newId);
   })
-  .catch(function(e){showStatus('✗ Chyba kopírování','red');console.error(e);});
+  .catch(function(e){showStatus('\u2717 Chyba kop\u00edrov\u00e1n\u00ed','red');console.error(e);});
 };
+
 
 // ══════════════════════════════════════════════════════
 // MANUAL SAVE / RELOAD BUTTONS
@@ -939,6 +1094,34 @@ document.getElementById('btn-save').onclick=function(){
 document.getElementById('btn-load').onclick=function(){
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
   loadTabCells(activeTab);
+};
+
+document.getElementById('btn-debug').onclick=function(){
+  fetch(SB_URL+'/rest/v1/'+TABLE+'?select=id,extra_key,store_idx,prod_idx,col_idx,value&limit=2000',{headers:sbH()})
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    // Group by extra_key
+    var groups={};
+    rows.forEach(function(r){
+      var k=r.extra_key===null?'(null)':r.extra_key;
+      if(!groups[k])groups[k]=[];
+      groups[k].push(r);
+    });
+    var html='<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center">'
+      +'<div style="background:#fff;border-radius:8px;padding:20px;max-width:90vw;max-height:90vh;overflow:auto;font-family:monospace;font-size:12px">'
+      +'<b>Supabase obsah ('+rows.length+' řádků)</b><button onclick="this.closest(\'div[style]\').remove()" style="float:right;cursor:pointer;border:none;background:#fee2e2;padding:4px 10px;border-radius:4px">✕ Zavřít</button><hr>';
+    Object.keys(groups).sort().forEach(function(gk){
+      html+='<b style="color:#1e40af">extra_key: '+gk+' ('+groups[gk].length+')</b><table border="1" cellpadding="3" style="margin:4px 0 12px;border-collapse:collapse">'
+        +'<tr style="background:#f3f4f6"><th>id</th><th>si</th><th>pi</th><th>ci</th><th>value</th></tr>';
+      groups[gk].slice(0,50).forEach(function(r){
+        html+='<tr><td>'+r.id+'</td><td>'+r.store_idx+'</td><td>'+r.prod_idx+'</td><td>'+r.col_idx+'</td><td>'+r.value+'</td></tr>';
+      });
+      if(groups[gk].length>50)html+='<tr><td colspan="5">... a dalších '+(groups[gk].length-50)+'</td></tr>';
+      html+='</table>';
+    });
+    html+='</div></div>';
+    document.body.insertAdjacentHTML('beforeend',html);
+  }).catch(function(e){alert('Chyba: '+e);});
 };
 
 // ══════════════════════════════════════════════════════
@@ -1050,6 +1233,7 @@ document.querySelectorAll('.ssec').forEach(function(s){io.observe(s);});
 
 var bt=document.getElementById('btop');var mn=document.getElementById('main');
 mn.onscroll=function(){bt.classList.toggle('vis',mn.scrollTop>200);};
+window.addEventListener('resize',function(){document.querySelectorAll('.ci').forEach(autoH);});
 bt.onclick=function(){mn.scrollTo({top:0,behavior:'smooth'});};
 </script>
 </body>
