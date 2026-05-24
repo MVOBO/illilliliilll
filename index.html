@@ -313,7 +313,7 @@ function renderMain(){
               ta.value=[v2,v3,v4].filter(Boolean).join('\t');
               autoH(ta);scheduleSave();
             };
-            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells['2']={val:ta.value,red:false};pr.cells['3']={val:'',red:false};pr.cells['4']={val:'',red:false};scheduleSave();};
+            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells['2']={val:ta.value,red:false};pr.cells['3']={val:'',red:false};pr.cells['4']={val:'',red:false};if(!ta.value){deleteFromSB(makeId(activeTab,si,pi,2));deleteFromSB(makeId(activeTab,si,pi,3));deleteFromSB(makeId(activeTab,si,pi,4));}scheduleSave();};
           })(ta,pr);
           td.appendChild(ta);
         } else {
@@ -324,7 +324,7 @@ function renderMain(){
             var prevVal='';
             ta.onfocus=function(){prevVal=ta.value;};
             ta.onblur=function(){var newVal=ta.value;if(newVal!==prevVal){var oldVal=prevVal;pushUndo(function(){ta.value=oldVal;autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:oldVal,red:false};scheduleSave();});}};
-            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};scheduleSave();};
+            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};if(!ta.value)deleteFromSB(makeId(activeTab,si,pi,ci));scheduleSave();};
           })(ta,pr,ci);
           (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
           if(ci===1&&pr.is_product){
@@ -1032,6 +1032,9 @@ document.getElementById('tab-add').onclick=function(){
     var newRows=[];
     Object.keys(merged).forEach(function(k){
       var row=merged[k];
+      // Přeskočit buňky, které jsou v paměti prázdné (uživatel je smazal, ale Supabase ještě nemá aktuální data)
+      var memPr=D[row.store_idx]&&D[row.store_idx].products[row.prod_idx];
+      if(memPr){var memCd=memPr.cells&&memPr.cells[String(row.col_idx)];if(memCd&&memCd.val==='')return;}
       newRows.push({
         id:makeId(newId,row.store_idx,row.prod_idx,row.col_idx),
         store_idx:row.store_idx,prod_idx:row.prod_idx,col_idx:row.col_idx,
@@ -1148,7 +1151,7 @@ function addNewProduct(si){
       var prevVal='';
       ta.onfocus=function(){prevVal=ta.value;};
       ta.onblur=function(){if(ta.value!==prevVal){pushUndo(function(){ta.value=prevVal;autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:prevVal,red:false};scheduleSave();});}};
-      ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};scheduleSave();};
+      ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};if(!ta.value)deleteFromSB(makeId(activeTab,si,pi,ci));scheduleSave();};
       ta.onpaste=function(e){xlPaste(e,si,pi,ci);};
     })(ta,pr,ci,si,pi);
     if(ci===1){
