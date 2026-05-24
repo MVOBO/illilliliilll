@@ -148,8 +148,6 @@ tr.hidden{display:none!important}
   <div class="tstats">Obchody: <b id="ss">0</b>&nbsp; Produkty: <b id="sp">0</b>&nbsp; Řádky: <b id="sr2">0</b></div>
   <div id="io-btns">
     <button id="btn-new-store" title="Přidat nový obchod">＋ Nový obchod</button>
-    <button id="btn-save" title="Uložit do Supabase">💾 Uložit</button>
-    <button id="btn-load" title="Načíst aktuální data ze Supabase">🔄 Aktualizovat</button>
     <span id="save-status"></span>
     <button id="btn-debug" style="height:28px;padding:0 10px;border-radius:5px;font-family:var(--font);font-size:10pt;cursor:pointer;background:#f3e8ff;border:1px solid #c084fc;color:#7e22ce;font-weight:500" title="Zobraz co je v DB">🔍 DB</button>
   </div>
@@ -1099,17 +1097,6 @@ document.getElementById('tab-add').onclick=function(){
 };
 
 
-// ══════════════════════════════════════════════════════
-// MANUAL SAVE / RELOAD BUTTONS
-// ══════════════════════════════════════════════════════
-document.getElementById('btn-save').onclick=function(){
-  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  saveCurrentTab().then(function(){showStatus('✓ Uloženo');}).catch(function(){showStatus('✗ Chyba','red');});
-};
-document.getElementById('btn-load').onclick=function(){
-  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  loadTabCells(activeTab);
-};
 
 document.getElementById('btn-debug').onclick=function(){
   fetch(SB_URL+'/rest/v1/'+TABLE+'?select=id,extra_key,store_idx,prod_idx,col_idx,value&limit=2000',{headers:sbH()})
