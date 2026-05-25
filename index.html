@@ -66,6 +66,40 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 .pbtn.active .pbtn-dot{background:var(--green)}
 .pbtn-cnt{margin-left:auto;font-size:10px;color:var(--g400);flex-shrink:0;padding-top:2px}
 .pbtn.active .pbtn-cnt{color:var(--green)}
+#btn-print{height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;background:#fff;border:1px solid var(--g300);color:var(--g700);font-weight:500;display:flex;align-items:center;gap:5px}
+#btn-print:hover{background:var(--g50);border-color:var(--g400)}
+#print-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);align-items:center;justify-content:center}
+#print-modal.open{display:flex}
+#print-box{background:#fff;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.22);width:420px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+#print-box-head{padding:14px 18px 10px;border-bottom:1px solid var(--g200);display:flex;align-items:center;gap:10px}
+#print-box-head h2{font-size:13px;font-weight:700;color:var(--g900);flex:1}
+#print-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--g400);line-height:1;padding:2px 6px;border-radius:4px}
+#print-close:hover{background:var(--g100);color:var(--g700)}
+#print-store-list{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:4px}
+.print-store-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer;user-select:none}
+.print-store-item:hover{background:var(--g50)}
+.print-store-item input[type=checkbox]{width:15px;height:15px;accent-color:var(--yellow);cursor:pointer;flex-shrink:0}
+.print-store-item label{font-size:11pt;color:var(--g800);cursor:pointer;flex:1}
+#print-box-foot{padding:10px 14px;border-top:1px solid var(--g200);display:flex;gap:8px;align-items:center}
+#print-sel-all,#print-sel-none{font-size:10px;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;font-family:var(--font)}
+#print-sel-all{color:var(--blue)}
+#print-sel-all:hover{background:var(--bl)}
+#print-sel-none{color:var(--g500)}
+#print-sel-none:hover{background:var(--g100)}
+#print-go{margin-left:auto;height:30px;padding:0 18px;border-radius:5px;background:var(--yellow);border:1px solid var(--ym);font-family:var(--font);font-size:11pt;font-weight:700;cursor:pointer}
+#print-go:hover{background:var(--ym)}
+@media print{
+  #topbar,#tab-bar,#sl,#sr,#btop,#print-modal,#fbar{display:none!important}
+  body{background:#fff;overflow:visible;height:auto;display:block}
+  #layout{display:block;overflow:visible}
+  #main{overflow:visible;padding:0}
+  .ssec{break-inside:avoid;margin:0 0 16px 0!important;border:1px solid #ccc!important;width:100%!important;min-width:0!important;border-radius:4px!important}
+  .ssec.print-hidden{display:none!important}
+  .ssec-hdr-y,.ssec-hdr-b{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  td,th{font-size:9pt}
+  textarea.ci{font-size:9pt;resize:none;overflow:hidden}
+  button:not(.ssec *){display:none!important}
+}
 #main{flex:1;overflow-y:auto;background:var(--g50);min-height:0}
 #fbar{display:none;background:var(--bl);border-bottom:1px solid #bfdbfe;padding:5px 14px;align-items:center;gap:10px;font-size:11pt;color:var(--blue);flex-shrink:0}
 #fbar.vis{display:flex}
@@ -152,6 +186,7 @@ tr.hidden{display:none!important}
   <div class="tstats">Obchody: <b id="ss">0</b>&nbsp; Produkty: <b id="sp">0</b>&nbsp; Řádky: <b id="sr2">0</b></div>
   <div id="io-btns">
     <button id="btn-new-store" title="Přidat nový obchod">＋ Nový obchod</button>
+    <button id="btn-print" title="Tisk vybraných obchodů">🖨 Tisknout</button>
     <button id="btn-load" style="height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;background:#fff;border:1px solid var(--g300);color:var(--g700);font-weight:500" title="Aktualizovat stránku">🔄 Aktualizovat</button>
     <span id="save-status"></span>
     <button id="btn-debug" style="height:28px;padding:0 10px;border-radius:5px;font-family:var(--font);font-size:10pt;cursor:pointer;background:#f3e8ff;border:1px solid #c084fc;color:#7e22ce;font-weight:500" title="Zobraz co je v DB">🔍 DB</button>
@@ -173,6 +208,20 @@ tr.hidden{display:none!important}
   <div id="sr">
     <div class="sh"><div class="sh-title">Produkty</div><input class="ssearch" id="pls" type="search" placeholder="Filtruj…" autocomplete="off"></div>
     <div id="prod-list"></div>
+  </div>
+</div>
+<div id="print-modal">
+  <div id="print-box">
+    <div id="print-box-head">
+      <h2>🖨 Vyberte obchody pro tisk</h2>
+      <button id="print-close">✕</button>
+    </div>
+    <div id="print-store-list"></div>
+    <div id="print-box-foot">
+      <button id="print-sel-all">Vybrat vše</button>
+      <button id="print-sel-none">Zrušit vše</button>
+      <button id="print-go">Tisknout</button>
+    </div>
   </div>
 </div>
 <button id="btop" title="Nahoru">↑</button>
@@ -1329,6 +1378,64 @@ function addNewProduct(si){
   renderPL(document.getElementById('pls').value);
 }
 
+
+// ══════════════════════════════════════════════════════
+// TISK
+// ══════════════════════════════════════════════════════
+(function(){
+  var modal=document.getElementById('print-modal');
+  var list=document.getElementById('print-store-list');
+
+  function openPrintModal(){
+    list.innerHTML='';
+    getStoreOrder().forEach(function(si){
+      var s=D[si];
+      if(!s||s._deleted)return;
+      var item=document.createElement('div');
+      item.className='print-store-item';
+      var cb=document.createElement('input');
+      cb.type='checkbox';cb.id='psc'+si;cb.dataset.si=si;cb.checked=true;
+      var lbl=document.createElement('label');
+      lbl.htmlFor='psc'+si;
+      var p=parseSched(s.name);
+      lbl.textContent=s.name;
+      item.appendChild(cb);item.appendChild(lbl);
+      item.addEventListener('click',function(e){if(e.target!==cb)cb.checked=!cb.checked;});
+      list.appendChild(item);
+    });
+    modal.classList.add('open');
+  }
+
+  document.getElementById('btn-print').onclick=openPrintModal;
+  document.getElementById('print-close').onclick=function(){modal.classList.remove('open');};
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('open');});
+
+  document.getElementById('print-sel-all').onclick=function(){
+    list.querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=true;});
+  };
+  document.getElementById('print-sel-none').onclick=function(){
+    list.querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  };
+
+  document.getElementById('print-go').onclick=function(){
+    // Označíme sekce které se mají skrýt
+    var checked={};
+    list.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+      if(cb.checked)checked[cb.dataset.si]=true;
+    });
+    document.querySelectorAll('.ssec').forEach(function(sec){
+      var si=sec.id.replace('sec','');
+      if(checked[si])sec.classList.remove('print-hidden');
+      else sec.classList.add('print-hidden');
+    });
+    modal.classList.remove('open');
+    setTimeout(function(){
+      window.print();
+      // Po tisku odebereme třídu
+      document.querySelectorAll('.ssec.print-hidden').forEach(function(s){s.classList.remove('print-hidden');});
+    },120);
+  };
+})();
 
 // ── INIT ──
 loadStructure(function(){
