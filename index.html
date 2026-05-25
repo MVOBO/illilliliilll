@@ -155,6 +155,108 @@ tr.hidden{display:none!important}
 #btop.vis{opacity:1;transform:translateY(0)}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g200);border-radius:2px}
 
+/* ════════════════════════════════════════
+   MOBILNÍ OPTIMALIZACE
+   ════════════════════════════════════════ */
+@media (max-width:768px){
+  :root{--lw:280px;--rw:260px;--hh:52px}
+
+  /* ── Topbar ── */
+  #topbar{padding:0 10px;gap:8px;flex-wrap:nowrap;overflow:hidden}
+  #topbar h1{font-size:13px}
+  #tsearch{max-width:none;flex:1;min-width:0;height:34px;font-size:13pt}
+  .tstats{display:none}
+  #io-btns{gap:5px}
+  #btn-new-store,#btn-print{display:none}
+  #btn-load{padding:0 8px;font-size:12pt;height:32px}
+  #save-status{display:none}
+  #btn-debug{display:none!important}
+
+  /* Hamburger tlačítka pro drawer sidebary */
+  #mob-sl-btn,#mob-sr-btn{
+    display:flex;align-items:center;justify-content:center;
+    width:36px;height:36px;border-radius:8px;border:1px solid var(--g200);
+    background:#fff;color:var(--g700);font-size:16px;cursor:pointer;
+    flex-shrink:0;gap:0
+  }
+  #mob-sl-btn:active,#mob-sr-btn:active{background:var(--g100)}
+
+  /* ── Drawer overlay ── */
+  #mob-overlay{
+    display:none;position:fixed;inset:0;z-index:90;
+    background:rgba(0,0,0,.4);
+  }
+  #mob-overlay.open{display:block}
+
+  /* ── Sidebary jako drawer ── */
+  #sl,#sr{
+    position:fixed;top:0;bottom:0;z-index:100;
+    transition:transform .25s cubic-bezier(.4,0,.2,1);
+    width:var(--lw)!important;
+  }
+  #sl{left:0;transform:translateX(-110%);border-right:1px solid var(--g200);box-shadow:4px 0 20px rgba(0,0,0,.15)}
+  #sr{right:0;width:var(--rw)!important;transform:translateX(110%);border-left:1px solid var(--g200);box-shadow:-4px 0 20px rgba(0,0,0,.15)}
+  #sl.mob-open{transform:translateX(0)}
+  #sr.mob-open{transform:translateX(0)}
+
+  /* Zavírací tlačítko v drawer headeru */
+  .sh{display:flex;align-items:center;gap:8px;padding:11px 10px 9px}
+  .sh-title{margin-bottom:0;flex:1;font-size:10px}
+  .sh-close{display:flex!important;align-items:center;justify-content:center;width:28px;height:28px;border:none;background:var(--g100);border-radius:6px;cursor:pointer;font-size:14px;color:var(--g600);flex-shrink:0}
+  .sh-close:active{background:var(--g200)}
+
+  /* ── Layout – žádné sidebary ── */
+  #layout{flex-direction:column}
+  #main{flex:1;overflow-y:auto}
+
+  /* ── Tab-bar ── */
+  #tab-bar{min-height:40px;padding:0 6px;gap:2px}
+  .tab{padding:7px 12px;font-size:12pt}
+  #tab-add{height:30px;width:30px;font-size:14px}
+
+  /* ── Sekce a tabulky ── */
+  .ssec{width:calc(100% - 12px)!important;min-width:0!important;margin:8px 6px 0!important;border-radius:5px}
+  .ssec:last-child{margin-bottom:8px!important}
+  .ssec-name-y,.ssec-name-b{font-size:16pt}
+
+  /* Tabulka scrollovatelná horizontálně */
+  .ssec > .ptbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .ptbl{min-width:580px}
+  .ptbl th,.ptbl td{font-size:10pt}
+  .ci{font-size:10pt;padding:5px 8px;min-height:30px}
+
+  /* Akční tlačítka v tabulce – větší touch target */
+  .add-row-btn,.del-btn{min-width:32px;min-height:32px}
+
+  /* ── Jízdní menu dole pro mob akce ── */
+  #mob-fab{
+    display:flex;position:fixed;bottom:14px;right:14px;z-index:80;
+    flex-direction:column;align-items:flex-end;gap:8px
+  }
+  #mob-fab-main{
+    width:52px;height:52px;border-radius:50%;border:none;
+    background:var(--yellow);box-shadow:0 4px 14px rgba(0,0,0,.25);
+    font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center
+  }
+  #mob-fab-main:active{background:var(--ym)}
+  #mob-fab-menu{display:none;flex-direction:column;align-items:flex-end;gap:6px}
+  #mob-fab-menu.open{display:flex}
+  .mob-fab-item{
+    display:flex;align-items:center;gap:8px;
+    background:#fff;border:1px solid var(--g200);border-radius:24px;
+    padding:7px 14px 7px 10px;box-shadow:0 2px 8px rgba(0,0,0,.12);
+    cursor:pointer;font-family:var(--font);font-size:12pt;color:var(--g800);
+    white-space:nowrap
+  }
+  .mob-fab-item:active{background:var(--g50)}
+
+  /* ── Tlačítko "nahoru" ── */
+  #btop{right:14px;bottom:80px}
+
+  /* ── Větší hit area pro tlačítka mazání/přidání ── */
+  .ssec-hdr-y button,.ssec-hdr-b button{min-width:36px;min-height:36px}
+}
+
 /* ── TABS ── */
 #tab-bar{display:flex;align-items:center;background:#fff;border-bottom:2px solid var(--ym);padding:0 8px;gap:2px;flex-shrink:0;overflow-x:auto;min-height:36px}
 #tab-bar::-webkit-scrollbar{height:3px}
@@ -181,6 +283,7 @@ tr.hidden{display:none!important}
 </head>
 <body>
 <div id="topbar">
+  <button id="mob-sl-btn" title="Obchody" style="display:none">☰</button>
   <h1>🥑 Avokádo &amp; Mango</h1>
   <input id="tsearch" type="search" placeholder="Hledat obchod nebo produkt…" autocomplete="off">
   <div class="tstats">Obchody: <b id="ss">0</b>&nbsp; Produkty: <b id="sp">0</b>&nbsp; Řádky: <b id="sr2">0</b></div>
@@ -191,12 +294,14 @@ tr.hidden{display:none!important}
     <span id="save-status"></span>
     <button id="btn-debug" style="height:28px;padding:0 10px;border-radius:5px;font-family:var(--font);font-size:10pt;cursor:pointer;background:#f3e8ff;border:1px solid #c084fc;color:#7e22ce;font-weight:500" title="Zobraz co je v DB">🔍 DB</button>
   </div>
+  <button id="mob-sr-btn" title="Produkty" style="display:none">🥑</button>
 </div>
+<div id="mob-overlay"></div>
 
 <div id="tab-bar"><button id="tab-add" title="Nový den">＋</button></div>
 <div id="layout">
   <div id="sl">
-    <div class="sh"><div class="sh-title">Obchody</div><input class="ssearch" id="sls" type="search" placeholder="Filtruj…" autocomplete="off"></div>
+    <div class="sh"><div class="sh-title">Obchody</div><input class="ssearch" id="sls" type="search" placeholder="Filtruj…" autocomplete="off"><button class="sh-close" id="sl-close" style="display:none">✕</button></div>
     <div id="store-list"></div>
   </div>
   <div id="main-wrap" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
@@ -206,9 +311,17 @@ tr.hidden{display:none!important}
     </div>
   </div>
   <div id="sr">
-    <div class="sh"><div class="sh-title">Produkty</div><input class="ssearch" id="pls" type="search" placeholder="Filtruj…" autocomplete="off"></div>
+    <div class="sh"><div class="sh-title">Produkty</div><input class="ssearch" id="pls" type="search" placeholder="Filtruj…" autocomplete="off"><button class="sh-close" id="sr-close" style="display:none">✕</button></div>
     <div id="prod-list"></div>
   </div>
+</div>
+<div id="mob-fab">
+  <div id="mob-fab-menu">
+    <div class="mob-fab-item" id="fab-new-store">＋ Nový obchod</div>
+    <div class="mob-fab-item" id="fab-print">🖨 Tisknout</div>
+    <div class="mob-fab-item" id="fab-reload">🔄 Aktualizovat</div>
+  </div>
+  <button id="mob-fab-main" title="Akce">＋</button>
 </div>
 <div id="print-modal">
   <div id="print-box">
@@ -361,7 +474,8 @@ function renderMain(){
     hdr.appendChild(btnNewProd);
     var tbl=document.createElement('table');tbl.className='ptbl';
     tbl.innerHTML=thead+'<tbody id="tb'+si+'"></tbody>';
-    sec.appendChild(hdr);sec.appendChild(tbl);
+    var wrap=document.createElement('div');wrap.className='ptbl-wrap';wrap.appendChild(tbl);
+    sec.appendChild(hdr);sec.appendChild(wrap);
     cont.appendChild(sec);
     const tb=sec.querySelector('#tb'+si);
     s.products.forEach(function(pr,pi){
@@ -1107,7 +1221,8 @@ function addNewStore(){
   var tbl=document.createElement('table');tbl.className='ptbl';
   var thead='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
   tbl.innerHTML=thead+'<tbody id="tb'+si+'"></tbody>';
-  sec.appendChild(hdr);sec.appendChild(tbl);
+  var wrap2=document.createElement('div');wrap2.className='ptbl-wrap';wrap2.appendChild(tbl);
+  sec.appendChild(hdr);sec.appendChild(wrap2);
   cont.appendChild(sec);
   sec.scrollIntoView({behavior:'smooth',block:'start'});
   go();
@@ -1378,6 +1493,73 @@ function addNewProduct(si){
   renderPL(document.getElementById('pls').value);
 }
 
+
+// ══════════════════════════════════════════════════════
+// MOBILNÍ LOGIKA
+// ══════════════════════════════════════════════════════
+(function(){
+  var isMob=function(){return window.innerWidth<=768;};
+  var sl=document.getElementById('sl');
+  var sr=document.getElementById('sr');
+  var overlay=document.getElementById('mob-overlay');
+  var slBtn=document.getElementById('mob-sl-btn');
+  var srBtn=document.getElementById('mob-sr-btn');
+  var slClose=document.getElementById('sl-close');
+  var srClose=document.getElementById('sr-close');
+  var fabMain=document.getElementById('mob-fab-main');
+  var fabMenu=document.getElementById('mob-fab-menu');
+  var mobFab=document.getElementById('mob-fab');
+
+  function closeAll(){
+    sl.classList.remove('mob-open');
+    sr.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  function openSl(){closeAll();sl.classList.add('mob-open');overlay.classList.add('open');}
+  function openSr(){closeAll();sr.classList.add('mob-open');overlay.classList.add('open');}
+
+  function applyMob(){
+    if(isMob()){
+      slBtn.style.display='flex';
+      srBtn.style.display='flex';
+      slClose.style.display='flex';
+      srClose.style.display='flex';
+      mobFab.style.display='flex';
+    } else {
+      slBtn.style.display='none';
+      srBtn.style.display='none';
+      slClose.style.display='none';
+      srClose.style.display='none';
+      mobFab.style.display='none';
+      closeAll();
+    }
+  }
+
+  slBtn.onclick=openSl;
+  srBtn.onclick=openSr;
+  slClose.onclick=closeAll;
+  srClose.onclick=closeAll;
+  overlay.onclick=closeAll;
+
+  // FAB
+  var fabOpen=false;
+  fabMain.onclick=function(){
+    fabOpen=!fabOpen;
+    fabMenu.classList.toggle('open',fabOpen);
+    fabMain.textContent=fabOpen?'✕':'＋';
+  };
+  document.getElementById('fab-new-store').onclick=function(){fabOpen=false;fabMenu.classList.remove('open');fabMain.textContent='＋';addNewStore();};
+  document.getElementById('fab-print').onclick=function(){fabOpen=false;fabMenu.classList.remove('open');fabMain.textContent='＋';document.getElementById('btn-print').click();};
+  document.getElementById('fab-reload').onclick=function(){fabOpen=false;fabMenu.classList.remove('open');fabMain.textContent='＋';location.reload();};
+
+  // Po kliknutí na obchod v sidebaru na mobilu — zavřít drawer
+  document.getElementById('store-list').addEventListener('click',function(e){
+    if(isMob()&&e.target.closest('.sbtn')){setTimeout(closeAll,180);}
+  });
+
+  applyMob();
+  window.addEventListener('resize',applyMob);
+})();
 
 // ══════════════════════════════════════════════════════
 // TISK
