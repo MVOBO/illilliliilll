@@ -1394,7 +1394,7 @@ function addNewProduct(si){
       var item=document.createElement('div');
       item.className='print-store-item';
       var cb=document.createElement('input');
-      cb.type='checkbox';cb.id='psc'+si;cb.dataset.si=si;cb.checked=true;
+      cb.type='checkbox';cb.id='psc'+si;cb.dataset.si=si;cb.checked=false;
       var lbl=document.createElement('label');
       lbl.htmlFor='psc'+si;
       var p=parseSched(s.name);
