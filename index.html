@@ -345,7 +345,6 @@ tr.hidden{display:none!important}
   <div id="io-btns">
     <button id="btn-new-store" title="Přidat nový obchod">＋ Nový obchod</button>
     <button id="btn-print" title="Tisk vybraných obchodů">🖨 Tisknout</button>
-    <button id="btn-load" style="height:28px;padding:0 12px;border-radius:5px;font-family:var(--font);font-size:11pt;cursor:pointer;background:#fff;border:1px solid var(--g300);color:var(--g700);font-weight:500" title="Aktualizovat stránku">🔄 Aktualizovat</button>
     <span id="save-status"></span>
     <span id="sync-status" style="font-size:10px;color:var(--g400);white-space:nowrap">○ připojování…</span>
     <button id="btn-debug" style="height:28px;padding:0 10px;border-radius:5px;font-family:var(--font);font-size:10pt;cursor:pointer;background:#f3e8ff;border:1px solid #c084fc;color:#7e22ce;font-weight:500" title="Zobraz co je v DB">🔍 DB</button>
@@ -375,7 +374,6 @@ tr.hidden{display:none!important}
   <div id="mob-fab-menu">
     <div class="mob-fab-item" id="fab-new-store">＋ Nový obchod</div>
     <div class="mob-fab-item" id="fab-print">🖨 Tisknout</div>
-    <div class="mob-fab-item" id="fab-reload">🔄 Aktualizovat</div>
   </div>
   <button id="mob-fab-main" title="Akce">＋</button>
 </div>
@@ -833,7 +831,10 @@ function rebuildAllProds(){
 }
 function loadStructure(cb){
   fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.__structure__&select=value',{headers:sbH()})
-  .then(function(r){return r.json();})
+  .then(function(r){
+    if(!r.ok)throw new Error('http '+r.status);
+    return r.json();
+  })
   .then(function(rows){
     if(rows&&rows.length&&rows[0].value){
       var saved=JSON.parse(rows[0].value);
@@ -843,12 +844,24 @@ function loadStructure(cb){
         });
       });
     } else {
+      // DB je prázdná — první spuštění, použijeme fallback a uložíme
       initFromFallback();
       saveStructure();
     }
     rebuildAllProds();
     cb();
-  }).catch(function(){initFromFallback();rebuildAllProds();cb();});
+  }).catch(function(err){
+    // Síťová chyba — NESMÍME přepsat strukturu. Pokud D[] už je naplněné, pokračujeme.
+    // Pokud je prázdné (první načtení), zkusíme znovu.
+    console.warn('loadStructure error:', err);
+    if(D&&D.length>0){
+      rebuildAllProds();
+      cb();
+    } else {
+      // Zkusíme ještě jednou po 2s
+      setTimeout(function(){loadStructure(cb);}, 2000);
+    }
+  });
 }
 
 // ── Store order ──
@@ -962,22 +975,31 @@ function saveCurrentTab(tabId){
   tabId=tabId||activeTab;
   var rows=collectTabData(tabId);
 
-  // Delete all cells AND extra rows for this tab
   var deleteOps=[
     fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId),{method:'DELETE',headers:sbH()}).catch(function(){}),
     fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId+'__ex'),{method:'DELETE',headers:sbH()}).catch(function(){})
   ];
   if(tabId==='vzor'){
-    // Also delete legacy null-format vzor rows (saved before tab system)
     deleteOps.push(
       fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&prod_idx=not.is.null',{method:'DELETE',headers:sbH()}).catch(function(){})
     );
   }
 
-  return Promise.all(deleteOps).then(function(){
+  function doInsert(attempt){
     if(!rows.length)return Promise.resolve();
-    return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)});
-  }).then(function(r){if(r&&!r.ok)throw new Error(r.status);});
+    return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)})
+      .then(function(r){
+        if(!r.ok){
+          // Při chybě insertu zkusíme ještě 2x (síťový výpadek)
+          if(attempt<3){
+            return new Promise(function(res){setTimeout(res,800);}).then(function(){return doInsert(attempt+1);});
+          }
+          throw new Error('insert failed '+r.status);
+        }
+      });
+  }
+
+  return Promise.all(deleteOps).then(function(){return doInsert(1);});
 }
 
 // ── Delete a single cell from Supabase ──
@@ -1313,11 +1335,7 @@ function addNewStore(){
   go();
 }
 document.getElementById('btn-new-store').onclick=addNewStore;
-document.getElementById('btn-load').onclick=function(){
-  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
-  showStatus('⏳ Ukládám…','orange');
-  saveCurrentTab().finally(function(){location.reload();});
-};
+document.getElementById('btn-print').onclick=function(){openPrintModal();};
 
 // ══════════════════════════════════════════════════════
 // RENDER TABS
@@ -1637,7 +1655,6 @@ function addNewProduct(si){
   };
   document.getElementById('fab-new-store').onclick=function(){fabOpen=false;fabMenu.classList.remove('open');fabMain.textContent='＋';addNewStore();};
   document.getElementById('fab-print').onclick=function(){fabOpen=false;fabMenu.classList.remove('open');fabMain.textContent='＋';document.getElementById('btn-print').click();};
-  document.getElementById('fab-reload').onclick=function(){fabOpen=false;fabMenu.classList.remove('open');fabMain.textContent='＋';location.reload();};
 
   // Po kliknutí na obchod v sidebaru na mobilu — zavřít drawer
   document.getElementById('store-list').addEventListener('click',function(e){
@@ -1739,8 +1756,15 @@ function initRealtime(){
   saveCurrentTab=function(){
     isSaving=true;
     clearTimeout(window._savingTimer);
-    window._savingTimer=setTimeout(function(){isSaving=false;},4000);
-    return origSave.apply(this,arguments);
+    // Reset až po dokončení uložení, ne jen po timeoutu
+    var p=origSave.apply(this,arguments);
+    p.finally(function(){
+      clearTimeout(window._savingTimer);
+      window._savingTimer=setTimeout(function(){isSaving=false;},2000); // 2s buffer po dokončení
+    });
+    // Záchranný timeout pro případ že Promise nikdy nesettluje
+    window._savingTimer=setTimeout(function(){isSaving=false;},15000);
+    return p;
   };
 
   function setStatus(txt,color){
