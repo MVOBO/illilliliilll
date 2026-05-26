@@ -580,7 +580,16 @@ function renderMain(){
             var prevVal='';
             ta.onfocus=function(){prevVal=ta.value;};
             ta.onblur=function(){var newVal=ta.value;if(newVal!==prevVal){var oldVal=prevVal;pushUndo(function(){ta.value=oldVal;autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:oldVal,red:false};scheduleSave();});}};
-            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};if(!ta.value)deleteFromSB(makeId(activeTab,si,pi,ci));scheduleSave();};
+            ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};if(!ta.value)deleteFromSB(makeId(activeTab,si,pi,ci));
+              // Pokud se mění název produktu (col 1), aktualizujeme i pr.name a sidebar
+              if(ci===1&&pr.is_product){
+                pr.name=ta.value;
+                tr.dataset.name=ta.value;
+                rebuildAllProds();
+                renderPL(document.getElementById('pls').value);
+                saveStructure();
+              }
+              scheduleSave();};
           })(ta,pr,ci);
           (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
           if(ci===1&&pr.is_product){
@@ -991,30 +1000,30 @@ function clearTabCells(){
 }
 
 // ── Load tab cells from Supabase and render ──
+var loadTabCellsSeq=0;
 function loadTabCells(tabId,cb){
-  showStatus('⏳ Načítám…','orange');
-  clearTabCells();
-  // For vzor: also load old-format rows (extra_key=null) so legacy data isn't lost
-  var cellPromise;
-  if(tabId==='vzor'){
-    cellPromise=Promise.all([
-      sbFetchAll('extra_key=is.null'),
-      sbFetchAll('extra_key=eq.vzor')
-    ]).then(function(res){
-      var merged={};
-      // null format (oldest, lowest priority)
-      (res[0]||[]).forEach(function(row){if(row.prod_idx!==null){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
-      // vzor_c_ format (medium priority)
-      (res[1]||[]).forEach(function(row){if(row.prod_idx!==null&&row.id.indexOf('|')<0){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
-      // vzor|si|pi|ci format (highest priority)
-      (res[1]||[]).forEach(function(row){if(row.prod_idx!==null&&row.id.indexOf('|')>=0){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
-      return Object.keys(merged).map(function(k){return merged[k];});
-    });
-  } else {
-    cellPromise=sbFetchAll('extra_key=eq.'+encodeURIComponent(tabId));
-  }
+  var doLoad=function(){
+    showStatus('⏳ Načítám…','orange');
+    var mySeq=++loadTabCellsSeq;
+    var cellPromise;
+    if(tabId==='vzor'){
+      cellPromise=Promise.all([
+        sbFetchAll('extra_key=is.null'),
+        sbFetchAll('extra_key=eq.vzor')
+      ]).then(function(res){
+        var merged={};
+        (res[0]||[]).forEach(function(row){if(row.prod_idx!==null){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
+        (res[1]||[]).forEach(function(row){if(row.prod_idx!==null&&row.id.indexOf('|')<0){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
+        (res[1]||[]).forEach(function(row){if(row.prod_idx!==null&&row.id.indexOf('|')>=0){var k=row.store_idx+'_'+row.prod_idx+'_'+row.col_idx;merged[k]=row;}});
+        return Object.keys(merged).map(function(k){return merged[k];});
+      });
+    } else {
+      cellPromise=sbFetchAll('extra_key=eq.'+encodeURIComponent(tabId));
+    }
   cellPromise
   .then(function(rows){
+    if(mySeq!==loadTabCellsSeq)return Promise.reject('stale');
+    clearTabCells();
     if(Array.isArray(rows)){
       rows.forEach(function(row){
         if(row.prod_idx===null)return;
@@ -1028,6 +1037,7 @@ function loadTabCells(tabId,cb){
     return sbFetchAll('extra_key=eq.'+encodeURIComponent(tabId+'__ex'));
   })
   .then(function(rows){
+    if(mySeq!==loadTabCellsSeq)return Promise.reject('stale');
     var savedExtras={};
     if(Array.isArray(rows)){
       rows.forEach(function(row){
@@ -1062,7 +1072,20 @@ function loadTabCells(tabId,cb){
     showStatus('✓ '+getTabName(tabId));
     if(cb)cb();
   })
-  .catch(function(e){showStatus('✗ Chyba načítání','red');console.error(e);});
+  .catch(function(e){
+    if(e==='stale')return;
+    showStatus('✗ Chyba načítání','red');console.error(e);
+  });
+  }; // konec doLoad
+
+  // Pokud právě čeká save, nejdřív uložíme, pak načteme
+  if(saveTimer){
+    clearTimeout(saveTimer);
+    saveTimer=null;
+    saveCurrentTab().finally(doLoad);
+  } else {
+    doLoad();
+  }
 }
 
 // ── Switch tab ──
