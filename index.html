@@ -579,15 +579,17 @@ function renderMain(){
             ta.onfocus=function(){prevVal=ta.value;};
             ta.onblur=function(){var newVal=ta.value;if(newVal!==prevVal){var oldVal=prevVal;pushUndo(function(){ta.value=oldVal;autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:oldVal,red:false};scheduleSave();});}};
             ta.oninput=function(){autoH(ta);if(!pr.cells)pr.cells={};pr.cells[String(ci)]={val:ta.value,red:false};if(!ta.value)deleteFromSB(makeId(activeTab,si,pi,ci));
-              // Pokud se mění název produktu (col 1), aktualizujeme i pr.name a sidebar
               if(ci===1&&pr.is_product){
                 pr.name=ta.value;
                 tr.dataset.name=ta.value;
                 rebuildAllProds();
                 renderPL(document.getElementById('pls').value);
-                saveStructure();
               }
               scheduleSave();};
+            // Uložíme strukturu (nový název) až po dokončení psaní
+            if(ci===1&&pr.is_product){
+              ta.onblur=function(){saveStructure();};
+            }
           })(ta,pr,ci);
           (function(ta,si,pi,ci){ta.onpaste=function(e){xlPaste(e,si,pi,ci);};})(ta,si,pi,ci);
           if(ci===1&&pr.is_product){
@@ -1782,7 +1784,29 @@ function initRealtime(){
         setTimeout(function(){setStatus('● live','var(--green)');},1500);
       };
       if(rowId==='__structure__'){
-        loadStructure(function(){renderSL();renderPL();renderMain();loadTabCells(activeTab);done();});
+        // Při vzdálené změně struktury jen aktualizujeme názvy/smazané — NESMÍME přepsat cells v paměti
+        fetch(SB_URL+'/rest/v1/'+TABLE+'?id=eq.__structure__&select=value',{headers:sbH()})
+        .then(function(r){return r.json();})
+        .then(function(rows){
+          if(!rows||!rows.length||!rows[0].value)return;
+          var saved=JSON.parse(rows[0].value);
+          saved.forEach(function(s,si){
+            if(!D[si])return;
+            D[si].name=s.name;
+            D[si]._deleted=s._deleted||false;
+            // Přidáme nové produkty, označíme smazané — cells existujících neměníme
+            (s.products||[]).forEach(function(sp,pi){
+              if(!D[si].products[pi]){
+                D[si].products[pi]=Object.assign({cells:{}},sp);
+              } else {
+                D[si].products[pi].name=sp.name;
+                D[si].products[pi]._deleted=sp._deleted||false;
+              }
+            });
+          });
+          rebuildAllProds();
+          renderSL();renderPL();renderMain();restoreExtras();go();done();
+        }).catch(function(){done();});
       } else if(rowId==='__tablist__'){
         loadTabList(function(){renderTabs();done();});
       } else if(rowId==='__storeorder__'){
