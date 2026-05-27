@@ -558,9 +558,9 @@ function renderMain(){
           (function(ta,pr,si,pi){
             ta.onpaste=function(e){
               var txt=(e.clipboardData||window.clipboardData).getData('text');
+              e.preventDefault();
               var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
               var lines=raw.split('\n').filter(function(r){return r!=='';});
-              e.preventDefault();
               if(lines.length<=1){
                 // Jednořádkový paste — původní chování
                 var cols=lines[0]?lines[0].split('\t'):[];
@@ -571,8 +571,8 @@ function renderMain(){
                 ta.value=[v2b,v3b,v4b].filter(Boolean).join('\t');
                 autoH(ta);scheduleSave();
               } else {
-                // Víceřádkový paste — použijeme xlPaste od sloupce 2
-                xlPaste(e,si,pi,2);
+                // Víceřádkový paste — předáme text přímo
+                xlPasteText(raw,si,pi,2);
                 // Obnovíme zobrazení prvního řádku
                 var v2b=(pr.cells['2']&&pr.cells['2'].val)||'';
                 var v3b=(pr.cells['3']&&pr.cells['3'].val)||'';
@@ -690,29 +690,31 @@ function renderMain(){
 function autoH(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
 
 function xlPaste(e,si,pi,startCol){
-  startCol=startCol||2;
-  const txt=(e.clipboardData||window.clipboardData).getData('text');
+  var txt=(e.clipboardData||window.clipboardData).getData('text');
   if(e.cancelable)e.preventDefault();
-  const raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
+  var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
+  xlPasteText(raw,si,pi,startCol);
+}
+
+function xlPasteText(raw,si,pi,startCol){
+  startCol=startCol||2;
   const excelRows=raw.split('\n').filter(function(r){return r!=='';});
   if(!excelRows.length)return;
 
   const tb=document.getElementById('tb'+si);
   if(!tb)return;
 
-  // Najdeme produktový řádek
-  var allTrs=[].slice.call(tb.querySelectorAll('tr'));
-  var prodI=-1;
-  for(var i=0;i<allTrs.length;i++){
-    if(+allTrs[i].dataset.pi===pi&&allTrs[i].classList.contains('r-product')){prodI=i;break;}
-  }
-  if(prodI<0)return;
-
-  // Zjistíme počet existujících extra řádků pod tímto produktem
-  function getExtraTrsAfterProd(){
+  function getProdI(){
     var list=[].slice.call(tb.querySelectorAll('tr'));
-    var idx=-1;
-    for(var i=0;i<list.length;i++){if(+list[i].dataset.pi===pi&&list[i].classList.contains('r-product')){idx=i;break;}}
+    for(var i=0;i<list.length;i++){
+      if(+list[i].dataset.pi===pi&&list[i].classList.contains('r-product'))return i;
+    }
+    return -1;
+  }
+
+  function getExtras(){
+    var list=[].slice.call(tb.querySelectorAll('tr'));
+    var idx=getProdI();if(idx<0)return[];
     var extras=[];
     for(var j=idx+1;j<list.length;j++){
       if(list[j].classList.contains('r-extra'))extras.push(list[j]);
@@ -721,63 +723,32 @@ function xlPaste(e,si,pi,startCol){
     return extras;
   }
 
-  // Doplníme chybějící extra řádky
-  var neededExtras=excelRows.length-1; // první řádek jde do produktu
-  var existingExtras=getExtraTrsAfterProd();
-  for(var n=existingExtras.length;n<neededExtras;n++){
-    // Najdeme poslední extra řádek (nebo produktový řádek) pro insertAfter
-    var ext2=getExtraTrsAfterProd();
-    var insertAfter=ext2.length>0?ext2[ext2.length-1]:allTrs[prodI];
+  // Všechny řádky jdou do extra řádků — vytvoříme potřebný počet
+  var needed=excelRows.length;
+  var existing=getExtras();
+  for(var n=existing.length;n<needed;n++){
+    var ext=getExtras();
+    var insertAfter=ext.length>0?ext[ext.length-1]:[].slice.call(tb.querySelectorAll('tr'))[getProdI()];
     addExtraRow(insertAfter,si);
   }
 
-  // Znovu načteme tr po přidání
-  allTrs=[].slice.call(tb.querySelectorAll('tr'));
-  prodI=-1;
-  for(var i=0;i<allTrs.length;i++){
-    if(+allTrs[i].dataset.pi===pi&&allTrs[i].classList.contains('r-product')){prodI=i;break;}
-  }
+  // Načteme extra řádky po vytvoření
+  var extras=getExtras();
 
   excelRows.forEach(function(row,ri){
-    var tr=allTrs[prodI+ri];
+    var tr=extras[ri];
     if(!tr)return;
     var cols=row.split('\t');
+    var key=tr.dataset.key;
+    if(!D[si]._extra)D[si]._extra={};
+    if(!D[si]._extra[key])D[si]._extra[key]={};
     var inputs=tr.querySelectorAll('.ci');
-
-    if(ri===0&&tr.classList.contains('r-product')){
-      // První řádek do produktového řádku — od startCol
-      cols.forEach(function(v,ci){
-        var inputIdx=startCol-1+ci;
-        if(inputIdx<inputs.length){
-          inputs[inputIdx].value=v.trim();autoH(inputs[inputIdx]);
-          var ckey=String(startCol+ci);
-          if(!D[si].products[pi].cells)D[si].products[pi].cells={};
-          D[si].products[pi].cells[ckey]={val:v.trim(),red:false};
-        }
-      });
-      // Aktualizujeme merged textarea zobrazení
-      var mergedTa=tr.querySelector('textarea.ci');
-      if(mergedTa){
-        var v2=(D[si].products[pi].cells['2']&&D[si].products[pi].cells['2'].val)||'';
-        var v3=(D[si].products[pi].cells['3']&&D[si].products[pi].cells['3'].val)||'';
-        var v4=(D[si].products[pi].cells['4']&&D[si].products[pi].cells['4'].val)||'';
-        mergedTa.value=[v2,v3,v4].filter(Boolean).join('\t');
-        autoH(mergedTa);
-      }
-    } else if(tr.classList.contains('r-extra')){
-      // Ostatní řádky do extra řádků
-      var key=tr.dataset.key;
-      if(!D[si]._extra)D[si]._extra={};
-      if(!D[si]._extra[key])D[si]._extra[key]={};
-      // startCol=2 → extra řádky začínají od sloupce 1 (celý řádek)
-      cols.forEach(function(v,ci){
-        var col=startCol+ci;
-        if(col>5)return;
-        inputs[col-1]&&(inputs[col-1].value=v.trim())&&autoH(inputs[col-1]);
-        if(inputs[col-1]){inputs[col-1].value=v.trim();autoH(inputs[col-1]);}
-        D[si]._extra[key][col]=v.trim();
-      });
-    }
+    cols.forEach(function(v,ci){
+      var col=startCol+ci;
+      if(col>5)return;
+      if(inputs[col-1]){inputs[col-1].value=v.trim();autoH(inputs[col-1]);}
+      D[si]._extra[key][col]=v.trim();
+    });
     scheduleSave();
   });
 }
