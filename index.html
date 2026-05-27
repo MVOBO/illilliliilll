@@ -572,7 +572,7 @@ function renderMain(){
                 autoH(ta);scheduleSave();
               } else {
                 // Víceřádkový paste — předáme text přímo
-                xlPasteText(raw,si,pi,2);
+                xlPasteText(raw,si,pi,2,null);
                 // Obnovíme zobrazení prvního řádku
                 var v2b=(pr.cells['2']&&pr.cells['2'].val)||'';
                 var v3b=(pr.cells['3']&&pr.cells['3'].val)||'';
@@ -696,7 +696,7 @@ function xlPaste(e,si,pi,startCol){
   xlPasteText(raw,si,pi,startCol);
 }
 
-function xlPasteText(raw,si,pi,startCol){
+function xlPasteText(raw,si,pi,startCol,startTr){
   startCol=startCol||2;
   const excelRows=raw.split('\n').filter(function(r){return r!=='';});
   if(!excelRows.length)return;
@@ -704,39 +704,48 @@ function xlPasteText(raw,si,pi,startCol){
   const tb=document.getElementById('tb'+si);
   if(!tb)return;
 
-  function getProdI(){
+  // Pokud máme konkrétní startTr, začínáme od něj — jinak od prvního extra řádku produktu
+  function getExtrasFromTr(fromTr){
     var list=[].slice.call(tb.querySelectorAll('tr'));
-    for(var i=0;i<list.length;i++){
-      if(+list[i].dataset.pi===pi&&list[i].classList.contains('r-product'))return i;
+    var idx=fromTr?list.indexOf(fromTr):-1;
+    if(idx<0){
+      // Fallback: najdeme první extra řádek produktu pi
+      for(var i=0;i<list.length;i++){
+        if(+list[i].dataset.pi===pi&&list[i].classList.contains('r-product')){idx=i;break;}
+      }
+      // Přeskočíme produktový řádek
+      idx++;
+      // Přeskočíme extra řádky které nepatří tomuto pi
+      while(idx<list.length&&list[idx].classList.contains('r-extra')&&
+            list[idx].dataset.pi!==undefined&&+list[idx].dataset.pi!==pi)idx++;
     }
-    return -1;
-  }
-
-  function getExtras(){
-    var list=[].slice.call(tb.querySelectorAll('tr'));
-    var idx=getProdI();if(idx<0)return[];
+    // Sbíráme existující extra řádky od idx dál
     var extras=[];
-    for(var j=idx+1;j<list.length;j++){
+    for(var j=idx;j<list.length;j++){
       if(list[j].classList.contains('r-extra'))extras.push(list[j]);
-      else break;
+      else if(!list[j].classList.contains('r-extra'))break;
     }
-    return extras;
+    return {extras:extras,afterIdx:idx};
   }
 
-  // Všechny řádky jdou do extra řádků — vytvoříme potřebný počet
+  var res=getExtrasFromTr(startTr);
+  var existingExtras=res.extras;
+
+  // Vytvoříme chybějící extra řádky
   var needed=excelRows.length;
-  var existing=getExtras();
-  for(var n=existing.length;n<needed;n++){
-    var ext=getExtras();
-    var insertAfter=ext.length>0?ext[ext.length-1]:[].slice.call(tb.querySelectorAll('tr'))[getProdI()];
+  for(var n=existingExtras.length;n<needed;n++){
+    var allTrs=[].slice.call(tb.querySelectorAll('tr'));
+    // Najdeme poslední existující extra řádek v naší skupině nebo startTr
+    var insertAfter=existingExtras.length>0
+      ?existingExtras[existingExtras.length-1]
+      :(startTr||allTrs[res.afterIdx-1]);
     addExtraRow(insertAfter,si);
+    // Aktualizujeme seznam
+    existingExtras=getExtrasFromTr(startTr).extras;
   }
-
-  // Načteme extra řádky po vytvoření
-  var extras=getExtras();
 
   excelRows.forEach(function(row,ri){
-    var tr=extras[ri];
+    var tr=existingExtras[ri];
     if(!tr)return;
     var cols=row.split('\t');
     var key=tr.dataset.key;
@@ -1238,7 +1247,7 @@ function addExtraRow(afterTr,si){
         var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
         var lines=raw.split('\n').filter(function(r){return r!=='';});
         if(lines.length>1){
-          xlPasteText(raw,si,_pi!==null?_pi:0,ci);
+          xlPasteText(raw,si,_pi!==null?_pi:0,ci,extra);
         } else {
           var cols=lines[0]?lines[0].split('\t'):[];
           var inputs=extra.querySelectorAll('.ci');
@@ -1305,7 +1314,7 @@ function restoreExtras(){
             var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
             var lines=raw.split('\n').filter(function(r){return r!=='';});
             if(lines.length>1){
-              xlPasteText(raw,+si,extra.dataset.pi!==undefined?+extra.dataset.pi:0,ci);
+              xlPasteText(raw,+si,extra.dataset.pi!==undefined?+extra.dataset.pi:0,ci,extra);
             } else {
               var cols=lines[0]?lines[0].split('\t'):[];
               var inputs=extra.querySelectorAll('.ci');
