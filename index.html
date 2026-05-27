@@ -678,31 +678,71 @@ function autoH(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
 function xlPaste(e,si,pi,startCol){
   startCol=startCol||1;
   const txt=(e.clipboardData||window.clipboardData).getData('text');
-  // Always intercept – even single cell may have \n inside
   e.preventDefault();
-  // Normalize line endings, trim trailing newline
   const raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n$/,'');
   const rows=raw.split('\n').filter(function(r){return r!=='';});
+  if(!rows.length)return;
   const tb=document.getElementById('tb'+si);
-  const trs=[].slice.call(tb.querySelectorAll('tr'));
+
+  // Najdeme výchozí tr (produktový řádek s pi)
+  var allTrs=[].slice.call(tb.querySelectorAll('tr'));
   var startI=-1;
-  for(var i=0;i<trs.length;i++){if(+trs[i].dataset.pi===pi){startI=i;break;}}
+  for(var i=0;i<allTrs.length;i++){if(+allTrs[i].dataset.pi===pi&&allTrs[i].classList.contains('r-product')){startI=i;break;}}
   if(startI<0)return;
+
   rows.forEach(function(row,ri){
-    const cols=row.split('\t');
-    const tr=trs[startI+ri];if(!tr)return;
-    const inputs=tr.querySelectorAll('.ci');
-    cols.forEach(function(v,ci){
-      var inputIdx=startCol-1+ci; // offset by start column
-      if(inputs[inputIdx]){
-        inputs[inputIdx].value=v.trim();autoH(inputs[inputIdx]);
-        const tpi=+tr.dataset.pi;const ckey=String(startCol+ci);
-        const tsi=+tr.dataset.si;
-        if(!D[tsi].products[tpi].cells)D[tsi].products[tpi].cells={};
-        D[tsi].products[tpi].cells[ckey]={val:v.trim(),red:false};
-        scheduleSave();
+    // Zjistíme aktuální seznam tr (mohl se změnit přidáním extra řádků)
+    allTrs=[].slice.call(tb.querySelectorAll('tr'));
+    var tr=allTrs[startI+ri];
+
+    // Pokud tr neexistuje nebo patří jinému produktu — vytvoříme extra řádek
+    if(!tr||(!tr.classList.contains('r-extra')&&ri>0)||(tr.dataset.pi!==undefined&&+tr.dataset.pi!==pi&&ri>0)){
+      // Najdeme poslední tr patřící tomuto produktu (produkt + jeho extra řádky)
+      allTrs=[].slice.call(tb.querySelectorAll('tr'));
+      var lastRelated=allTrs[startI];
+      for(var j=startI+1;j<allTrs.length;j++){
+        var t=allTrs[j];
+        if(t.classList.contains('r-extra')&&(t.dataset.pi===String(pi)||t.dataset.pi===undefined)){
+          lastRelated=t;
+        } else break;
       }
-    });
+      addExtraRow(lastRelated,si);
+      // Po přidání znovu načteme seznam a najdeme nový tr
+      allTrs=[].slice.call(tb.querySelectorAll('tr'));
+      startI=-1;
+      for(var k=0;k<allTrs.length;k++){if(+allTrs[k].dataset.pi===pi&&allTrs[k].classList.contains('r-product')){startI=k;break;}}
+      tr=allTrs[startI+ri];
+    }
+
+    if(!tr)return;
+    const cols=row.split('\t');
+    const inputs=tr.querySelectorAll('.ci');
+
+    if(tr.classList.contains('r-product')){
+      // Produktový řádek — ukládáme do pr.cells
+      cols.forEach(function(v,ci){
+        var inputIdx=startCol-1+ci;
+        if(inputs[inputIdx]){
+          inputs[inputIdx].value=v.trim();autoH(inputs[inputIdx]);
+          const ckey=String(startCol+ci);
+          if(!D[si].products[pi].cells)D[si].products[pi].cells={};
+          D[si].products[pi].cells[ckey]={val:v.trim(),red:false};
+        }
+      });
+    } else if(tr.classList.contains('r-extra')){
+      // Extra řádek — ukládáme do D[si]._extra[key]
+      var key=tr.dataset.key;
+      if(!D[si]._extra)D[si]._extra={};
+      if(!D[si]._extra[key])D[si]._extra[key]={};
+      cols.forEach(function(v,ci){
+        var inputIdx=startCol-1+ci;
+        if(inputs[inputIdx]){
+          inputs[inputIdx].value=v.trim();autoH(inputs[inputIdx]);
+          D[si]._extra[key][startCol+ci]=v.trim();
+        }
+      });
+    }
+    scheduleSave();
   });
 }
 
@@ -853,15 +893,12 @@ function loadStructure(cb){
     rebuildAllProds();
     cb();
   }).catch(function(err){
-    // Síťová chyba — NESMÍME přepsat strukturu. Pokud D[] už je naplněné, pokračujeme.
-    // Pokud je prázdné (první načtení), zkusíme znovu.
     console.warn('loadStructure error:', err);
     if(D&&D.length>0){
       rebuildAllProds();
       cb();
     } else {
-      // Zkusíme ještě jednou po 2s
-      setTimeout(function(){loadStructure(cb);}, 2000);
+      setTimeout(function(){loadStructure(cb);},2000);
     }
   });
 }
@@ -971,37 +1008,65 @@ function collectTabData(tabId){
 }
 
 // ── Save current tab cells to Supabase ──
-// Full replace: delete all regular cells for this tab, then insert non-empty ones.
-// This ensures cleared/deleted cells never linger in Supabase.
+// Používáme UPSERT (on_conflict=id) místo DELETE+INSERT.
+// Tím eliminujeme okno ztráty dat při souběžných uloženích.
+// Smazané buňky se odstraňují individuálně přes deleteFromSB() při vymazání hodnoty.
+var saveQueue=Promise.resolve(); // fronta — zajišťuje sekvenční ukládání
+
 function saveCurrentTab(tabId){
+  tabId=tabId||activeTab;
+  // Snapshot dat v okamžiku volání (před dalšími změnami)
+  var rows=collectTabData(tabId);
+
+  // Přidáme do fronty — čekáme až doběhne předchozí save
+  saveQueue=saveQueue.then(function(){
+    if(!rows.length)return Promise.resolve();
+    // UPSERT: vloží nové, přepíše existující, nesmaže ostatní
+    return fetch(SB_URL+'/rest/v1/'+TABLE,{
+      method:'POST',
+      headers:Object.assign({},sbHU(),{'Prefer':'resolution=merge-duplicates'}),
+      body:JSON.stringify(rows)
+    }).then(function(r){
+      if(!r.ok){
+        // Retry 3x při síťové chybě
+        return new Promise(function(res){setTimeout(res,800);}).then(function(){
+          return fetch(SB_URL+'/rest/v1/'+TABLE,{
+            method:'POST',
+            headers:Object.assign({},sbHU(),{'Prefer':'resolution=merge-duplicates'}),
+            body:JSON.stringify(rows)
+          });
+        });
+      }
+    });
+  }).catch(function(e){console.error('saveCurrentTab error',e);});
+
+  return saveQueue;
+}
+
+// ── Při přepnutí tabu nebo kopírování vzoru potřebujeme stále full replace ──
+// (aby se odstranily buňky ze smazaných produktů apod.)
+function saveCurrentTabFull(tabId){
   tabId=tabId||activeTab;
   var rows=collectTabData(tabId);
 
-  var deleteOps=[
-    fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId),{method:'DELETE',headers:sbH()}).catch(function(){}),
-    fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId+'__ex'),{method:'DELETE',headers:sbH()}).catch(function(){})
-  ];
-  if(tabId==='vzor'){
-    deleteOps.push(
-      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&prod_idx=not.is.null',{method:'DELETE',headers:sbH()}).catch(function(){})
-    );
-  }
+  saveQueue=saveQueue.then(function(){
+    var deleteOps=[
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId),{method:'DELETE',headers:sbH()}).catch(function(){}),
+      fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId+'__ex'),{method:'DELETE',headers:sbH()}).catch(function(){})
+    ];
+    if(tabId==='vzor'){
+      deleteOps.push(fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&prod_idx=not.is.null',{method:'DELETE',headers:sbH()}).catch(function(){}));
+    }
+    return Promise.all(deleteOps).then(function(){
+      if(!rows.length)return;
+      return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)})
+        .then(function(r){
+          if(!r.ok)return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)});
+        });
+    });
+  }).catch(function(e){console.error('saveCurrentTabFull error',e);});
 
-  function doInsert(attempt){
-    if(!rows.length)return Promise.resolve();
-    return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)})
-      .then(function(r){
-        if(!r.ok){
-          // Při chybě insertu zkusíme ještě 2x (síťový výpadek)
-          if(attempt<3){
-            return new Promise(function(res){setTimeout(res,800);}).then(function(){return doInsert(attempt+1);});
-          }
-          throw new Error('insert failed '+r.status);
-        }
-      });
-  }
-
-  return Promise.all(deleteOps).then(function(){return doInsert(1);});
+  return saveQueue;
 }
 
 // ── Delete a single cell from Supabase ──
@@ -1106,7 +1171,7 @@ function loadTabCells(tabId,cb){
   if(saveTimer){
     clearTimeout(saveTimer);
     saveTimer=null;
-    saveCurrentTab().finally(doLoad);
+    saveCurrentTabFull().finally(doLoad);
   } else {
     doLoad();
   }
@@ -1121,8 +1186,7 @@ function switchTab(id){
   activeTab=id;
   renderTabs();
   showStatus('⏳ Ukládám…','orange');
-  // Full replace save of previous tab (delete+insert), then load new tab
-  saveCurrentTab(prevId).finally(function(){loadTabCells(id);});
+  saveCurrentTabFull(prevId).finally(function(){loadTabCells(id);});
 }
 
 function getTabName(id){
@@ -1400,10 +1464,10 @@ document.getElementById('tab-add').onclick=function(){
   var existing=tabs.filter(function(t){return t.name.startsWith(name);}).length;
   if(existing>0)name=name+' ('+( existing+1)+')';
 
-  showStatus('\u23f3 Kop\u00edruji VZOR\u2026','orange');
+  showStatus('⏳ Kopíruji VZOR…','orange');
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
 
-  saveCurrentTab().then(function(){
+  saveCurrentTabFull().then(function(){
     // Load ALL vzor data from Supabase — all 3 legacy formats:
     // 1) extra_key=null,  id=c_si_pi_ci
     // 2) extra_key=vzor,  id=vzor_c_si_pi_ci
@@ -1755,19 +1819,19 @@ function initRealtime(){
 
   // Označíme okno ukládání aby se ignorovalo vlastní echo
   var origSave=saveCurrentTab;
-  saveCurrentTab=function(){
+  var origSaveFull=saveCurrentTabFull;
+  function markSaving(p){
     isSaving=true;
     clearTimeout(window._savingTimer);
-    // Reset až po dokončení uložení, ne jen po timeoutu
-    var p=origSave.apply(this,arguments);
     p.finally(function(){
       clearTimeout(window._savingTimer);
-      window._savingTimer=setTimeout(function(){isSaving=false;},2000); // 2s buffer po dokončení
+      window._savingTimer=setTimeout(function(){isSaving=false;},2000);
     });
-    // Záchranný timeout pro případ že Promise nikdy nesettluje
     window._savingTimer=setTimeout(function(){isSaving=false;},15000);
     return p;
-  };
+  }
+  saveCurrentTab=function(){return markSaving(origSave.apply(this,arguments));};
+  saveCurrentTabFull=function(){return markSaving(origSaveFull.apply(this,arguments));};
 
   function setStatus(txt,color){
     var el=document.getElementById('sync-status');
