@@ -820,7 +820,7 @@ function xlPasteText(raw,si,pi,startCol,startTr){
       var col=startCol+ci;
       if(col>5)return;
       if(inputs[col-1]){inputs[col-1].value=v.trim();autoH(inputs[col-1]);}
-      D[si]._extra[key][col]=v.trim();
+      D[si]._extra[key][String(col)]=v.trim();
     });
     scheduleSave();
   });
@@ -1077,8 +1077,9 @@ function collectTabData(tabId){
           rows.push({id:makeExId(tabId,si,key,0),store_idx:si,prod_idx:null,col_idx:0,extra_key:tabId+'__ex',value:String(vals._pi)});
         }
         for(var ci=1;ci<=5;ci++){
-          if(vals[String(ci)]){
-            rows.push({id:makeExId(tabId,si,key,ci),store_idx:si,prod_idx:null,col_idx:ci,extra_key:tabId+'__ex',value:vals[String(ci)]});
+          var v=vals[ci]!==undefined?vals[ci]:vals[String(ci)];
+          if(v&&v!=='_row'){
+            rows.push({id:makeExId(tabId,si,key,ci),store_idx:si,prod_idx:null,col_idx:ci,extra_key:tabId+'__ex',value:String(v)});
           }
         }
       });
@@ -1095,29 +1096,23 @@ var saveQueue=Promise.resolve(); // fronta — zajišťuje sekvenční ukládán
 
 function saveCurrentTab(tabId){
   tabId=tabId||activeTab;
-  // Snapshot dat v okamžiku volání (před dalšími změnami)
   var rows=collectTabData(tabId);
 
-  // Přidáme do fronty — čekáme až doběhne předchozí save
   saveQueue=saveQueue.then(function(){
     if(!rows.length)return Promise.resolve();
-    // UPSERT: vloží nové, přepíše existující, nesmaže ostatní
-    return fetch(SB_URL+'/rest/v1/'+TABLE,{
-      method:'POST',
-      headers:Object.assign({},sbHU(),{'Prefer':'resolution=merge-duplicates'}),
-      body:JSON.stringify(rows)
-    }).then(function(r){
-      if(!r.ok){
-        // Retry 3x při síťové chybě
-        return new Promise(function(res){setTimeout(res,400);}).then(function(){
-          return fetch(SB_URL+'/rest/v1/'+TABLE,{
-            method:'POST',
-            headers:Object.assign({},sbHU(),{'Prefer':'resolution=merge-duplicates'}),
-            body:JSON.stringify(rows)
-          });
-        });
-      }
-    });
+    function upsert(attempt){
+      return fetch(SB_URL+'/rest/v1/'+TABLE,{
+        method:'POST',
+        headers:Object.assign({},sbHU(),{'Prefer':'resolution=merge-duplicates'}),
+        body:JSON.stringify(rows)
+      }).then(function(r){
+        if(!r.ok){
+          if(attempt<3)return new Promise(function(res){setTimeout(res,400*attempt);}).then(function(){return upsert(attempt+1);});
+          throw new Error('upsert failed '+r.status);
+        }
+      });
+    }
+    return upsert(1);
   }).catch(function(e){console.error('saveCurrentTab error',e);});
 
   return saveQueue;
@@ -1144,10 +1139,16 @@ function saveCurrentTabFull(tabId){
       deleteOps.push(fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&prod_idx=not.is.null',{method:'DELETE',headers:sbH()}).catch(function(){}));
     }
     return Promise.all(deleteOps).then(function(){
-      return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)})
-        .then(function(r){
-          if(!r.ok)return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)});
-        });
+      function insert(attempt){
+        return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)})
+          .then(function(r){
+            if(!r.ok){
+              if(attempt<3)return new Promise(function(res){setTimeout(res,400*attempt);}).then(function(){return insert(attempt+1);});
+              throw new Error('insert failed '+r.status);
+            }
+          });
+      }
+      return insert(1);
     });
   }).catch(function(e){console.error('saveCurrentTabFull error',e);});
 
@@ -1228,7 +1229,7 @@ function loadTabCells(tabId,cb){
           if(!savedExtras[si][key])savedExtras[si][key]={};
           savedExtras[si][key]._pi=+row.value;
         } else {
-          D[si]._extra[key][row.col_idx]=row.value;
+          D[si]._extra[key][String(row.col_idx)]=row.value;
           if(!savedExtras[si])savedExtras[si]={};
           if(!savedExtras[si][key])savedExtras[si][key]={};
           savedExtras[si][key][row.col_idx]=row.value;
@@ -1248,7 +1249,10 @@ function loadTabCells(tabId,cb){
   })
   .catch(function(e){
     if(e==='stale')return;
-    showStatus('✗ Chyba načítání','red');console.error(e);
+    showStatus('✗ Chyba načítání — zkouším znovu…','red');
+    console.error(e);
+    // Automatický retry po 2s
+    setTimeout(function(){loadTabCells(tabId,cb);},2000);
   });
   }; // konec doLoad
 
@@ -1307,7 +1311,7 @@ function addExtraRow(afterTr,si){
         autoH(ta);
         if(!D[si]._extra)D[si]._extra={};
         if(!D[si]._extra[key])D[si]._extra[key]={};
-        D[si]._extra[key][ci]=ta.value;
+        D[si]._extra[key][String(ci)]=ta.value;
         scheduleSave();
       };
       ta.onpaste=function(e){
@@ -1326,7 +1330,7 @@ function addExtraRow(afterTr,si){
               inputs[iIdx].value=v.trim();autoH(inputs[iIdx]);
               if(!D[si]._extra)D[si]._extra={};
               if(!D[si]._extra[key])D[si]._extra[key]={};
-              D[si]._extra[key][iIdx+1]=v.trim();
+              D[si]._extra[key][String(iIdx+1)]=v.trim();
               scheduleSave();
             }
           });
@@ -1398,7 +1402,7 @@ function restoreExtras(){
         ta.className='ci';ta.rows=1;ta.spellcheck=false;
         ta.value=(vals[ci]&&vals[ci]!=='_row')?vals[ci]:'';
         (function(ta,ci,key,si,extra){
-          ta.oninput=function(){autoH(ta);if(!D[si]._extra)D[si]._extra={};if(!D[si]._extra[key])D[si]._extra[key]={};D[si]._extra[key][ci]=ta.value;scheduleSave();};
+          ta.oninput=function(){autoH(ta);if(!D[si]._extra)D[si]._extra={};if(!D[si]._extra[key])D[si]._extra[key]={};D[si]._extra[key][String(ci)]=ta.value;scheduleSave();};
           ta.onpaste=function(e){
             var txt=(e.clipboardData||window.clipboardData).getData('text');
             e.preventDefault();
@@ -1411,7 +1415,7 @@ function restoreExtras(){
               var inputs=extra.querySelectorAll('.ci');
               cols.forEach(function(v,idx){
                 var iIdx=ci-1+idx;
-                if(inputs[iIdx]){inputs[iIdx].value=v.trim();autoH(inputs[iIdx]);if(!D[si]._extra)D[si]._extra={};if(!D[si]._extra[key])D[si]._extra[key]={};D[si]._extra[key][iIdx+1]=v.trim();scheduleSave();}
+                if(inputs[iIdx]){inputs[iIdx].value=v.trim();autoH(inputs[iIdx]);if(!D[si]._extra)D[si]._extra={};if(!D[si]._extra[key])D[si]._extra[key]={};D[si]._extra[key][String(iIdx+1)]=v.trim();scheduleSave();}
               });
             }
           };
@@ -1606,11 +1610,8 @@ document.getElementById('tab-add').onclick=function(){
   showStatus('⏳ Kopíruji VZOR…','orange');
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
 
-  saveCurrentTabFull().then(function(){
-    // Load ALL vzor data from Supabase — all 3 legacy formats:
-    // 1) extra_key=null,  id=c_si_pi_ci
-    // 2) extra_key=vzor,  id=vzor_c_si_pi_ci
-    // 3) extra_key=vzor,  id=vzor|si|pi|ci  (newest)
+  // Vždy nejdřív uložíme vzor (ne activeTab) aby kopie byla aktuální
+  saveCurrentTab('vzor').then(function(){return saveQueue;}).then(function(){
     return Promise.all([
       sbFetchAll('extra_key=is.null'),
       sbFetchAll('extra_key=eq.vzor'),
