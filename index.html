@@ -145,6 +145,40 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 .ci:focus{background:#fffbeb;box-shadow:inset 0 0 0 2px var(--yellow);border-radius:2px}
 .r-product .ci{font-size:11pt;font-weight:bold;color:#000}
 .r-product td:nth-child(2) .ci{color:#ff0000}
+
+/* ── Výběr řádků ── */
+.row-sel-cb{
+  width:16px;height:16px;accent-color:var(--yellow);cursor:pointer;
+  opacity:0;transition:opacity .1s;flex-shrink:0;margin:0 4px;
+}
+tr:hover .row-sel-cb,
+tr.row-selected .row-sel-cb{opacity:1}
+tr.row-selected td{background:#fffbe6!important}
+tr.row-selected td:nth-child(n+2){background:#fff8d6!important}
+.td-cb{width:24px;padding:0!important;background:transparent!important;border-bottom:1px solid var(--g100);text-align:center;vertical-align:middle}
+
+/* ── Kopírovací toolbar ── */
+#copy-toolbar{
+  display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:#1f2937;color:#fff;border-radius:10px;padding:8px 14px;
+  box-shadow:0 4px 20px rgba(0,0,0,.35);z-index:150;
+  align-items:center;gap:12px;font-family:var(--font);font-size:11pt;
+  white-space:nowrap;
+}
+#copy-toolbar.visible{display:flex}
+#copy-toolbar-count{font-weight:700;color:var(--yellow)}
+#copy-toolbar-copy{
+  background:var(--yellow);color:#000;border:none;border-radius:6px;
+  padding:5px 14px;font-family:var(--font);font-size:11pt;font-weight:700;
+  cursor:pointer;
+}
+#copy-toolbar-copy:hover{background:var(--ym)}
+#copy-toolbar-clear{
+  background:none;border:none;color:#9ca3af;font-size:18px;
+  cursor:pointer;padding:0 2px;line-height:1;
+}
+#copy-toolbar-clear:hover{color:#fff}
+@media print{#copy-toolbar{display:none!important}}
 .r-subsection .ci{font-size:13pt;font-weight:bold;color:#000}
 .r-red .ci{font-size:11pt;font-weight:bold;color:#ff0000}
 .r-note .ci{font-size:11pt;font-weight:normal;color:#000}
@@ -377,6 +411,11 @@ tr.hidden{display:none!important}
   </div>
   <button id="mob-fab-main" title="Akce">＋</button>
 </div>
+<div id="copy-toolbar">
+  <span>Označeno: <span id="copy-toolbar-count">0</span> řádků</span>
+  <button id="copy-toolbar-copy">📋 Kopírovat</button>
+  <button id="copy-toolbar-clear">✕</button>
+</div>
 <div id="print-modal">
   <div id="print-box">
     <div id="print-box-head">
@@ -483,7 +522,7 @@ function renderMain(){
     const nameCls=isB?'ssec-name-b':'ssec-name-y';
     const bCls=isB?'ssec-badge badge-b':'ssec-badge badge-y';
     const badge=sched?'<span class="'+bCls+'">\u{1F4C5} '+sched+'</span>':'';
-    const thead='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
+    const thead='<thead><tr><th class="td-cb" style="width:24px"></th>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
 
     // Editable store name
     var hdr=document.createElement('div');hdr.className=hdrCls;
@@ -540,6 +579,7 @@ function renderMain(){
       const tr=document.createElement('tr');
       tr.dataset.si=si;tr.dataset.pi=pi;tr.dataset.name=pr.name;tr.dataset.ip=pr.is_product?1:0;
       tr.className='r-'+(pr.row_type||'product');
+      addCheckboxToRow(tr);
       for(var ci=1;ci<=5;ci++){
         if(pr.is_product&&(ci===3||ci===4))continue;
         const td=document.createElement('td');
@@ -982,7 +1022,7 @@ function scheduleSave(){
   saveTimer=setTimeout(function(){
     saveTimer=null;
     saveCurrentTab().then(function(){showStatus('✓ Uloženo');}).catch(function(){showStatus('✗ Chyba','red');});
-  },1200);
+  },600);
 }
 
 // ── Collect all editable cell data for current tab ──
@@ -1045,7 +1085,7 @@ function saveCurrentTab(tabId){
     }).then(function(r){
       if(!r.ok){
         // Retry 3x při síťové chybě
-        return new Promise(function(res){setTimeout(res,800);}).then(function(){
+        return new Promise(function(res){setTimeout(res,400);}).then(function(){
           return fetch(SB_URL+'/rest/v1/'+TABLE,{
             method:'POST',
             headers:Object.assign({},sbHU(),{'Prefer':'resolution=merge-duplicates'}),
@@ -1066,6 +1106,12 @@ function saveCurrentTabFull(tabId){
   var rows=collectTabData(tabId);
 
   saveQueue=saveQueue.then(function(){
+    // Bezpečnostní pojistka: pokud nemáme žádná data k uložení,
+    // DELETE neprovedeme — ochrana proti smazání dat při prázdné paměti
+    if(!rows.length){
+      return Promise.resolve();
+    }
+
     var deleteOps=[
       fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId),{method:'DELETE',headers:sbH()}).catch(function(){}),
       fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=eq.'+encodeURIComponent(tabId+'__ex'),{method:'DELETE',headers:sbH()}).catch(function(){})
@@ -1074,7 +1120,6 @@ function saveCurrentTabFull(tabId){
       deleteOps.push(fetch(SB_URL+'/rest/v1/'+TABLE+'?extra_key=is.null&prod_idx=not.is.null',{method:'DELETE',headers:sbH()}).catch(function(){}));
     }
     return Promise.all(deleteOps).then(function(){
-      if(!rows.length)return;
       return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)})
         .then(function(r){
           if(!r.ok)return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(rows)});
@@ -1183,13 +1228,13 @@ function loadTabCells(tabId,cb){
   });
   }; // konec doLoad
 
-  // Pokud právě čeká save, nejdřív uložíme, pak načteme
+  // Pokud právě čeká save, nejdřív uložíme (UPSERT — bez DELETE), pak načteme
   if(saveTimer){
     clearTimeout(saveTimer);
     saveTimer=null;
-    saveCurrentTabFull().finally(doLoad);
+    saveCurrentTab().finally(doLoad);
   } else {
-    doLoad();
+    saveQueue.then(doLoad);
   }
 }
 
@@ -1198,11 +1243,11 @@ function switchTab(id){
   if(activeTab===id)return;
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}
   var prevId=activeTab;
-  // Switch visually immediately
   activeTab=id;
   renderTabs();
   showStatus('⏳ Ukládám…','orange');
-  saveCurrentTabFull(prevId).finally(function(){loadTabCells(id);});
+  // UPSERT — bez DELETE, ochrana proti smazání dat při přepnutí
+  saveCurrentTab(prevId).finally(function(){loadTabCells(id);});
 }
 
 function getTabName(id){
@@ -1216,6 +1261,7 @@ function addExtraRow(afterTr,si){
   var extra=document.createElement('tr');
   extra.className='r-extra';
   extra.dataset.si=si;extra.dataset.ip=0;extra.dataset.name='';
+  addCheckboxToRow(extra);
   var key='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
   var _pi=afterTr.dataset.pi!==undefined?+afterTr.dataset.pi:null;
   extra.dataset.key=key;
@@ -1297,6 +1343,7 @@ function restoreExtras(){
       D[+si]._extra[key]=vals;
       var extra=document.createElement('tr');
       extra.className='r-extra';extra.dataset.si=si;extra.dataset.ip=0;extra.dataset.name='';extra.dataset.key=key;
+      addCheckboxToRow(extra);
       for(var ci=1;ci<=5;ci++){
         var td=document.createElement('td');
         var LLABELS=['','','Materiál','Šarže','Č. palety','Poznámka'];
@@ -1418,7 +1465,7 @@ function addNewStore(){
   (function(si){btnNewProd.onclick=function(){addNewProduct(si);};})(si);
   hdr.appendChild(btnNewProd);
   var tbl=document.createElement('table');tbl.className='ptbl';
-  var thead='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
+  var thead='<thead><tr><th class="td-cb" style="width:24px"></th>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
   tbl.innerHTML=thead+'<tbody id="tb'+si+'"></tbody>';
   var wrap2=document.createElement('div');wrap2.className='ptbl-wrap';wrap2.appendChild(tbl);
   sec.appendChild(hdr);sec.appendChild(wrap2);
@@ -1618,6 +1665,7 @@ function addNewProduct(si){
   var tr=document.createElement('tr');
   tr.dataset.si=si;tr.dataset.pi=pi;tr.dataset.name=name;tr.dataset.ip=1;
   tr.className='r-product';
+  addCheckboxToRow(tr);
   for(var ci=1;ci<=5;ci++){
     var td=document.createElement('td');
     if(ci>1)td.style.background='#fafff8';
@@ -1690,6 +1738,133 @@ function addNewProduct(si){
   renderPL(document.getElementById('pls').value);
 }
 
+
+// ══════════════════════════════════════════════════════
+// VÝBĚR ŘÁDKŮ A KOPÍROVÁNÍ
+// ══════════════════════════════════════════════════════
+var selectedRows=[];
+var lastClickedTr=null;
+
+function addCheckboxToRow(tr){
+  var tdCb=document.createElement('td');
+  tdCb.className='td-cb';
+  var cb=document.createElement('input');
+  cb.type='checkbox';cb.className='row-sel-cb';
+  tdCb.appendChild(cb);
+  tr.insertBefore(tdCb,tr.firstChild);
+
+  // Klik na checkbox
+  cb.addEventListener('click',function(e){
+    e.stopPropagation();
+    toggleRowSelection(tr,cb.checked,e.shiftKey);
+  });
+  // Klik na řádek (ne na buňku) pro toggle
+  tr.addEventListener('click',function(e){
+    if(e.target.classList.contains('ci')||e.target.closest('.ci'))return;
+    if(e.target.classList.contains('row-sel-cb'))return;
+    if(e.target.tagName==='BUTTON'||e.target.closest('button'))return;
+    toggleRowSelection(tr,!tr.classList.contains('row-selected'),e.shiftKey);
+  });
+}
+
+function toggleRowSelection(tr,select,shiftKey){
+  if(shiftKey&&lastClickedTr&&lastClickedTr!==tr){
+    // Výběr rozsahu — najdeme všechny tr mezi posledně kliknutým a tímto
+    var allTrs=[].slice.call(document.querySelectorAll('#cont .ptbl tbody tr'));
+    var i1=allTrs.indexOf(lastClickedTr);
+    var i2=allTrs.indexOf(tr);
+    if(i1>i2){var tmp=i1;i1=i2;i2=tmp;}
+    for(var i=i1;i<=i2;i++){
+      setRowSelected(allTrs[i],true);
+    }
+  } else {
+    setRowSelected(tr,select);
+    lastClickedTr=tr;
+  }
+  updateCopyToolbar();
+}
+
+function setRowSelected(tr,selected){
+  var cb=tr.querySelector('.row-sel-cb');
+  if(selected){
+    tr.classList.add('row-selected');
+    if(cb)cb.checked=true;
+    if(selectedRows.indexOf(tr)<0)selectedRows.push(tr);
+  } else {
+    tr.classList.remove('row-selected');
+    if(cb)cb.checked=false;
+    var idx=selectedRows.indexOf(tr);
+    if(idx>=0)selectedRows.splice(idx,1);
+  }
+}
+
+function clearSelection(){
+  selectedRows.slice().forEach(function(tr){setRowSelected(tr,false);});
+  selectedRows=[];
+  lastClickedTr=null;
+  updateCopyToolbar();
+}
+
+function updateCopyToolbar(){
+  // Odstraníme smazané tr z pole
+  selectedRows=selectedRows.filter(function(tr){return document.contains(tr);});
+  var toolbar=document.getElementById('copy-toolbar');
+  var cnt=document.getElementById('copy-toolbar-count');
+  if(selectedRows.length>0){
+    toolbar.classList.add('visible');
+    cnt.textContent=selectedRows.length;
+  } else {
+    toolbar.classList.remove('visible');
+  }
+}
+
+function copySelectedRows(){
+  if(!selectedRows.length)return;
+  // Seřadíme podle pořadí v DOM
+  var allTrs=[].slice.call(document.querySelectorAll('#cont .ptbl tbody tr'));
+  var ordered=selectedRows.slice().sort(function(a,b){
+    return allTrs.indexOf(a)-allTrs.indexOf(b);
+  });
+  var lines=ordered.map(function(tr){
+    var cells=[];
+    // Přeskočíme td-cb (první td) a td akčních tlačítek (poslední td)
+    var tds=[].slice.call(tr.querySelectorAll('td'));
+    tds.forEach(function(td,i){
+      if(i===0&&td.classList.contains('td-cb'))return; // checkbox
+      if(i===tds.length-1)return; // akční tlačítka
+      var ta=td.querySelector('textarea.ci');
+      cells.push(ta?ta.value.trim():'');
+    });
+    return cells.join('\t');
+  });
+  var text=lines.join('\r\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      var btn=document.getElementById('copy-toolbar-copy');
+      btn.textContent='✓ Zkopírováno';
+      setTimeout(function(){btn.textContent='📋 Kopírovat';},1500);
+    });
+  } else {
+    // Fallback
+    var ta=document.createElement('textarea');
+    ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    var btn=document.getElementById('copy-toolbar-copy');
+    btn.textContent='✓ Zkopírováno';
+    setTimeout(function(){btn.textContent='📋 Kopírovat';},1500);
+  }
+}
+
+document.getElementById('copy-toolbar-copy').onclick=copySelectedRows;
+document.getElementById('copy-toolbar-clear').onclick=clearSelection;
+
+// Odznačit při kliknutí mimo tabulku
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#cont')&&!e.target.closest('#copy-toolbar')){
+    clearSelection();
+  }
+});
 
 // ══════════════════════════════════════════════════════
 // MOBILNÍ LOGIKA
@@ -1851,7 +2026,7 @@ function initRealtime(){
     clearTimeout(window._savingTimer);
     p.finally(function(){
       clearTimeout(window._savingTimer);
-      window._savingTimer=setTimeout(function(){isSaving=false;},2000);
+      window._savingTimer=setTimeout(function(){isSaving=false;},1000);
     });
     window._savingTimer=setTimeout(function(){isSaving=false;},15000);
     return p;
@@ -1868,7 +2043,6 @@ function initRealtime(){
     if(isSaving)return;
     clearTimeout(reloadTimer);
     reloadTimer=setTimeout(function(){
-      setStatus('↻ sync…','var(--blue)');
       var done=function(){
         setStatus('● live','var(--green)');
         setTimeout(function(){setStatus('● live','var(--green)');},1500);
@@ -1902,9 +2076,19 @@ function initRealtime(){
       } else if(rowId==='__storeorder__'){
         loadStoreOrder(function(){renderSL();renderMain();go();done();});
       } else {
-        loadTabCells(activeTab);done();
+        // Změna buňky od druhého uživatele — počkáme až doběhne náš případný save
+        var doRemoteLoad=function(){
+          loadTabCells(activeTab);done();
+        };
+        if(saveTimer){
+          // Nejdřív uložíme co máme, pak načteme
+          clearTimeout(saveTimer);saveTimer=null;
+          saveCurrentTab().finally(doRemoteLoad);
+        } else {
+          saveQueue.then(doRemoteLoad);
+        }
       }
-    },500);
+    },1000);
   }
 
   function connect(){
