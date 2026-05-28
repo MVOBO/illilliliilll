@@ -1869,8 +1869,11 @@ function copyRows(){
   var lines=ordered.map(function(tr){
     var cells=[];
     var tds=[].slice.call(tr.querySelectorAll('td'));
+    var isExtra=tr.classList.contains('r-extra');
     tds.forEach(function(td,i){
       if(i===tds.length-1)return; // přeskočíme akční sloupec
+      // U extra řádků přeskočíme první td (sloupec Produkt — vždy prázdný)
+      if(isExtra&&i===0)return;
       var ta=td.querySelector('textarea.ci');
       cells.push(ta?ta.value.trim():'');
     });
