@@ -583,7 +583,6 @@ function renderMain(){
       const tr=document.createElement('tr');
       tr.dataset.si=si;tr.dataset.pi=pi;tr.dataset.name=pr.name;tr.dataset.ip=pr.is_product?1:0;
       tr.className='r-'+(pr.row_type||'product');
-      addCopyBtnToRow(tr);
       for(var ci=1;ci<=5;ci++){
         if(pr.is_product&&(ci===3||ci===4))continue;
         const td=document.createElement('td');
@@ -720,6 +719,7 @@ function renderMain(){
       btnWrap.appendChild(btnClear);
       tdPlus.appendChild(btnWrap);
       tr.appendChild(tdPlus);
+      addCopyBtnToRow(tr);
       tb.appendChild(tr);
     });
   });
@@ -1265,7 +1265,6 @@ function addExtraRow(afterTr,si){
   var extra=document.createElement('tr');
   extra.className='r-extra';
   extra.dataset.si=si;extra.dataset.ip=0;extra.dataset.name='';
-  addCopyBtnToRow(extra);
   var key='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
   var _pi=afterTr.dataset.pi!==undefined?+afterTr.dataset.pi:null;
   extra.dataset.key=key;
@@ -1332,6 +1331,7 @@ function addExtraRow(afterTr,si){
   // Insert after all existing extra rows for this product (append, not prepend)
   var refNode=afterTr.nextSibling;
   while(refNode&&refNode.classList&&refNode.classList.contains('r-extra')){refNode=refNode.nextSibling;}
+  addCopyBtnToRow(extra);
   afterTr.parentNode.insertBefore(extra,refNode||null);
   extra.querySelector('.ci').focus();
 }
@@ -1347,7 +1347,6 @@ function restoreExtras(){
       D[+si]._extra[key]=vals;
       var extra=document.createElement('tr');
       extra.className='r-extra';extra.dataset.si=si;extra.dataset.ip=0;extra.dataset.name='';extra.dataset.key=key;
-      addCopyBtnToRow(extra);
       for(var ci=1;ci<=5;ci++){
         var td=document.createElement('td');
         var LLABELS=['','','Materiál','Šarže','Č. palety','Poznámka'];
@@ -1396,9 +1395,9 @@ function restoreExtras(){
         if(productTr){
           var ref=productTr.nextSibling;
           while(ref&&ref.classList&&ref.classList.contains('r-extra')){ref=ref.nextSibling;}
-          tb.insertBefore(extra,ref||null);
-        } else { tb.appendChild(extra); }
-      } else { tb.appendChild(extra); }
+          addCopyBtnToRow(extra);tb.insertBefore(extra,ref||null);
+        } else { addCopyBtnToRow(extra);tb.appendChild(extra); }
+      } else { addCopyBtnToRow(extra);tb.appendChild(extra); }
       extra.querySelectorAll('.ci').forEach(autoH);
     });
   });
@@ -1669,7 +1668,6 @@ function addNewProduct(si){
   var tr=document.createElement('tr');
   tr.dataset.si=si;tr.dataset.pi=pi;tr.dataset.name=name;tr.dataset.ip=1;
   tr.className='r-product';
-  addCopyBtnToRow(tr);
   for(var ci=1;ci<=5;ci++){
     var td=document.createElement('td');
     if(ci>1)td.style.background='#fafff8';
@@ -1734,6 +1732,7 @@ function addNewProduct(si){
   };})(tr,pr,si,pi);
   btnWrap.appendChild(btnPlus);btnWrap.appendChild(btnClear);
   tdPlus.appendChild(btnWrap);tr.appendChild(tdPlus);
+  addCopyBtnToRow(tr);
   tb.appendChild(tr);
   autoH(tr.querySelectorAll('.ci')[0]);
   tr.querySelectorAll('.ci')[0].focus();
