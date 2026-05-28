@@ -139,8 +139,8 @@ body{font-family:var(--font);font-size:11pt;color:#000;background:var(--g50);hei
 .r-extra .ci{font-size:11pt;font-weight:normal;color:#000;text-align:left}
 .r-extra td:first-child .ci{color:#ff0000;font-weight:bold}
 .r-extra .ci::placeholder{color:var(--g300);font-style:italic;font-weight:normal;text-align:left}
-.ptbl th:last-child{width:66px;padding:0}
-.ptbl td:last-child{width:66px;padding:0;border-bottom:1px solid var(--g100);background:transparent!important}
+.ptbl th:last-child{width:66px;min-width:66px;padding:0}
+.ptbl td:last-child{width:66px;min-width:66px;padding:0;border-bottom:1px solid var(--g100);background:transparent!important}
 .ci{width:100%;padding:4px 10px;border:none;outline:none;background:transparent;min-height:26px;resize:none;overflow:hidden;line-height:1.4;display:block;font-family:var(--font)}
 .ci:focus{background:#fffbeb;box-shadow:inset 0 0 0 2px var(--yellow);border-radius:2px}
 .r-product .ci{font-size:11pt;font-weight:bold;color:#000}
@@ -678,9 +678,9 @@ function renderMain(){
       }
       // + and clear button cell
       var tdPlus=document.createElement('td');
-      tdPlus.style.cssText='width:44px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
+      tdPlus.style.cssText='width:66px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
       var btnWrap=document.createElement('div');
-      btnWrap.style.cssText='display:flex;flex-direction:row;align-items:center;gap:3px;padding:0 3px;justify-content:center';
+      btnWrap.style.cssText='display:flex;flex-direction:row;align-items:center;gap:2px;padding:0 2px;justify-content:center;flex-wrap:nowrap';
 
       var btnPlus=document.createElement('button');
       btnPlus.textContent='+';
@@ -717,6 +717,26 @@ function renderMain(){
 
       btnWrap.appendChild(btnPlus);
       btnWrap.appendChild(btnClear);
+      // Tlačítko kopírování přímo do btnWrap
+      var btnCopy=document.createElement('button');
+      btnCopy.textContent='⎘';btnCopy.title='Kopírovat řádek (Shift+klik pro více)';
+      btnCopy.style.cssText=btnPlus.style.cssText;
+      btnCopy.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(e.shiftKey&&lastSelTr&&lastSelTr!==tr){
+          var all=[].slice.call(document.querySelectorAll('#cont .ptbl tbody tr'));
+          var i1=all.indexOf(lastSelTr),i2=all.indexOf(tr);
+          if(i1>i2){var tmp=i1;i1=i2;i2=tmp;}
+          for(var i=i1;i<=i2;i++)setRowSel(all[i],true);
+        } else if(tr.classList.contains('row-selected')){
+          setRowSel(tr,false);
+        } else {
+          setRowSel(tr,true);
+          lastSelTr=tr;
+        }
+        updateCopyBar();
+      });
+      btnWrap.appendChild(btnCopy);
       tdPlus.appendChild(btnWrap);
       tr.appendChild(tdPlus);
       addCopyBtnToRow(tr);
