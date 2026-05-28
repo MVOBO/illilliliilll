@@ -1336,10 +1336,31 @@ function addExtraRow(afterTr,si){
     td.appendChild(ta);extra.appendChild(td);
   }
   var tdX=document.createElement('td');
-  tdX.style.cssText='width:22px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
+  tdX.style.cssText='width:44px;padding:0;vertical-align:middle;border-bottom:1px solid var(--g100)';
+  var xWrap=document.createElement('div');
+  xWrap.style.cssText='display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;padding:0 2px';
+  var btnCopyEx=document.createElement('button');
+  btnCopyEx.textContent='⎘';btnCopyEx.title='Kopírovat řádek (Shift+klik pro více)';
+  btnCopyEx.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:11px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font)';
+  btnCopyEx.onmouseover=function(){this.style.background='#fef9c3';this.style.borderColor='#ca8a04';this.style.color='#92400e';};
+  btnCopyEx.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
+  (function(btn,tr){btn.addEventListener('click',function(e){
+    e.stopPropagation();
+    if(e.shiftKey&&lastSelTr&&lastSelTr!==tr){
+      var all=[].slice.call(document.querySelectorAll('#cont .ptbl tbody tr'));
+      var i1=all.indexOf(lastSelTr),i2=all.indexOf(tr);
+      if(i1>i2){var tmp=i1;i1=i2;i2=tmp;}
+      for(var i=i1;i<=i2;i++)setRowSel(all[i],true);
+    } else if(tr.classList.contains('row-selected')){
+      setRowSel(tr,false);
+    } else {
+      setRowSel(tr,true);lastSelTr=tr;
+    }
+    updateCopyBar();
+  });})(btnCopyEx,extra);
   var btnX=document.createElement('button');
   btnX.textContent='×';btnX.title='Odebrat řádek';
-  btnX.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;margin:4px auto;font-family:var(--font)';
+  btnX.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font)';
   btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
   btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
   (function(key,si,extra){btnX.onclick=function(){
@@ -1347,11 +1368,11 @@ function addExtraRow(afterTr,si){
     if(D[si]._extra)delete D[si]._extra[key];
     extra.remove();
   };})(key,si,extra);
-  tdX.appendChild(btnX);extra.appendChild(tdX);
+  xWrap.appendChild(btnCopyEx);xWrap.appendChild(btnX);
+  tdX.appendChild(xWrap);extra.appendChild(tdX);
   // Insert after all existing extra rows for this product (append, not prepend)
   var refNode=afterTr.nextSibling;
   while(refNode&&refNode.classList&&refNode.classList.contains('r-extra')){refNode=refNode.nextSibling;}
-  addCopyBtnToRow(extra);
   afterTr.parentNode.insertBefore(extra,refNode||null);
   extra.querySelector('.ci').focus();
 }
@@ -1398,26 +1419,48 @@ function restoreExtras(){
         td.appendChild(ta);extra.appendChild(td);
       }
       var tdX=document.createElement('td');
-      tdX.style.cssText='width:22px;padding:0;vertical-align:middle';
+      tdX.style.cssText='width:44px;padding:0;vertical-align:middle';
+      var xWrap2=document.createElement('div');
+      xWrap2.style.cssText='display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;padding:0 2px';
+      var btnCopyEx2=document.createElement('button');
+      btnCopyEx2.textContent='⎘';btnCopyEx2.title='Kopírovat řádek (Shift+klik pro více)';
+      btnCopyEx2.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:11px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font)';
+      btnCopyEx2.onmouseover=function(){this.style.background='#fef9c3';this.style.borderColor='#ca8a04';this.style.color='#92400e';};
+      btnCopyEx2.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
+      (function(btn,tr){btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(e.shiftKey&&lastSelTr&&lastSelTr!==tr){
+          var all=[].slice.call(document.querySelectorAll('#cont .ptbl tbody tr'));
+          var i1=all.indexOf(lastSelTr),i2=all.indexOf(tr);
+          if(i1>i2){var tmp=i1;i1=i2;i2=tmp;}
+          for(var i=i1;i<=i2;i++)setRowSel(all[i],true);
+        } else if(tr.classList.contains('row-selected')){
+          setRowSel(tr,false);
+        } else {
+          setRowSel(tr,true);lastSelTr=tr;
+        }
+        updateCopyBar();
+      });})(btnCopyEx2,extra);
       var btnX=document.createElement('button');
       btnX.textContent='×';btnX.title='Odebrat řádek';
-      btnX.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;margin:4px auto';
+      btnX.style.cssText='width:18px;height:18px;border:1px solid var(--g300);border-radius:3px;background:var(--g50);color:var(--g400);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:var(--font)';
       btnX.onmouseover=function(){this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';};
       btnX.onmouseout=function(){this.style.background='var(--g50)';this.style.borderColor='var(--g300)';this.style.color='var(--g400)';};
       (function(key,si,extra){btnX.onclick=function(){
         for(var ci=0;ci<=5;ci++) deleteFromSB(makeExId(activeTab,si,key,ci));
         if(D[si]._extra)delete D[si]._extra[key];extra.remove();
       };})(key,+si,extra);
-      tdX.appendChild(btnX);extra.appendChild(tdX);
+      xWrap2.appendChild(btnCopyEx2);xWrap2.appendChild(btnX);
+      tdX.appendChild(xWrap2);extra.appendChild(tdX);
       var pi=vals._pi;
       if(pi!==undefined){
         var productTr=tb.querySelector('tr[data-pi="'+pi+'"]');
         if(productTr){
           var ref=productTr.nextSibling;
           while(ref&&ref.classList&&ref.classList.contains('r-extra')){ref=ref.nextSibling;}
-          addCopyBtnToRow(extra);tb.insertBefore(extra,ref||null);
-        } else { addCopyBtnToRow(extra);tb.appendChild(extra); }
-      } else { addCopyBtnToRow(extra);tb.appendChild(extra); }
+          tb.insertBefore(extra,ref||null);
+        } else { tb.appendChild(extra); }
+      } else { tb.appendChild(extra); }
       extra.querySelectorAll('.ci').forEach(autoH);
     });
   });
