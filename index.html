@@ -1677,7 +1677,7 @@ document.getElementById('tab-add').onclick=function(){
     return fetch(SB_URL+'/rest/v1/'+TABLE,{method:'POST',headers:sbHU(),body:JSON.stringify(newRows)});
   })
   .then(function(){
-    tabs.push({id:newId,name:name});
+    tabs.splice(1,0,{id:newId,name:name});
     saveTabList();
     activeTab=newId;
     renderTabs();
